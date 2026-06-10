@@ -34,6 +34,7 @@ model Player {
   clanTag       String?
   discordId     String?
   isRegistered  Boolean   @default(false)
+  phone         String?
   status        String    @default("active") // active, left
   lastActiveAt  DateTime?
   leftAt        DateTime?

@@ -1,11 +1,70 @@
-import { Interaction } from 'discord.js';
+import { Interaction, ModalSubmitInteraction, EmbedBuilder } from 'discord.js';
 import logger from '../config/logger';
 import { commands } from '../commands';
-import { errorEmbed, isAdmin } from '../utils/embeds';
+import { errorEmbed, isAdmin, EMBED_COLOR } from '../utils/embeds';
+import prisma from '../database/prisma';
 
 const cooldowns = new Map<string, number>();
 
+async function handleModal(interaction: ModalSubmitInteraction): Promise<void> {
+  if (interaction.customId === 'modal_whatsapp') {
+    const name = interaction.fields.getTextInputValue('whatsapp_name');
+    const phone = interaction.fields.getTextInputValue('whatsapp_phone');
+    const discordId = interaction.user.id;
+
+    try {
+      // Buscar si ya existe un player con este discordId
+      const existing = await prisma.player.findFirst({
+        where: { discordId },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      if (existing) {
+        await prisma.player.update({
+          where: { id: existing.id },
+          data: { name, phone },
+        });
+      } else {
+        // Crear uno nuevo sin tag (no vinculado a CR)
+        await prisma.player.create({
+          data: {
+            tag: `discord_${discordId}`,
+            name,
+            discordId,
+            phone,
+            status: 'active',
+          },
+        });
+      }
+
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('✅ Registro exitoso')
+            .setDescription(`**${name}** — ${phone}\nTus datos se guardaron correctamente.`)
+            .setColor(EMBED_COLOR),
+        ],
+        ephemeral: true,
+      });
+      logger.info(`WhatsApp registered: ${name} (${phone}) -> ${discordId}`);
+    } catch (err) {
+      logger.error(`Modal whatsapp error: ${(err as Error).message}`);
+      await interaction.reply({
+        embeds: [errorEmbed('Error', 'No se pudo guardar. Intentá de nuevo.')],
+        ephemeral: true,
+      });
+    }
+    return;
+  }
+}
+
 export async function handleInteraction(interaction: Interaction): Promise<void> {
+  // Handle modal submissions
+  if (interaction.isModalSubmit()) {
+    await handleModal(interaction);
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const command = commands.get(interaction.commandName);
