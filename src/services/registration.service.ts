@@ -107,9 +107,10 @@ export async function registerPlayer(
       };
     }
     logger.error('Unexpected error in registerPlayer:', error);
+    const errMsg = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      error: 'Error inesperado al registrar. Intentá de nuevo.',
+      error: `Error inesperado: ${errMsg}`,
     };
   }
 }

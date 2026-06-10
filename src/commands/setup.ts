@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { BotCommand } from '../types';
 import { getClanInfo } from '../api/clan';
 import { CRApiError } from '../api/client';
@@ -90,7 +90,7 @@ export const setup: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('setup')
     .setDescription('Vincular este servidor con un clan de Clash Royale (líderes)')
-    .setDefaultMemberPermissions('0')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((opt) =>
       opt.setName('clan_tag').setDescription('Tag del clan (ej: #28P8RQUY)').setRequired(true),
     )

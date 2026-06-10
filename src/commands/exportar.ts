@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, AttachmentBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, AttachmentBuilder, PermissionFlagsBits } from 'discord.js';
 import { BotCommand } from '../types';
 import { getGuildClanTag } from '../utils/guild';
 import prisma from '../database/prisma';
@@ -58,7 +58,7 @@ export const exportar: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('exportar')
     .setDescription('Exportar datos del clan (líderes)')
-    .setDefaultMemberPermissions('0')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((opt) =>
       opt
         .setName('formato')

@@ -10,6 +10,28 @@ import { startRoleUpdater, stopRoleUpdater } from './tasks/update-roles';
 import { startBackupTask, stopBackupTask } from './tasks/backup-database';
 import { startIPChecker, stopIPChecker } from './tasks/check-ip';
 import { handleInteraction } from './events/interactionCreate';
+import { crGet } from './api/client';
+
+async function testApiConnection(): Promise<void> {
+  const keyPreview = config.CR_API_KEY.substring(0, 20) + '...';
+  logger.info(`Config -> CR_API_BASE_URL: ${config.CR_API_BASE_URL}`);
+  logger.info(`Config -> CR_API_KEY: ${keyPreview}`);
+
+  try {
+    const result = await crGet<object>('/clans/%2328P8RQUY');
+    const name = (result as { name?: string }).name || 'unknown';
+    logger.info(`API OK -> Clan "${name}" conectado via ${config.CR_API_BASE_URL}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`API FAILED -> ${config.CR_API_BASE_URL} | ${keyPreview} | ${msg}`);
+    logger.error('==========================================================');
+    logger.error('SOLUCION: Crear nueva API key en https://developer.clashroyale.com');
+    logger.error('Si usas proxy.royaleapi.dev -> Whitelist IP: 45.79.218.79');
+    logger.error('Si usas api.clashroyale.com -> Whitelist IP: la de tu servidor');
+    logger.error('Despues actualizar CR_API_KEY en .env y reiniciar el container');
+    logger.error('==========================================================');
+  }
+}
 
 const client = new Client({
   intents: [
@@ -17,9 +39,11 @@ const client = new Client({
   ],
 });
 
-client.once(Events.ClientReady, (readyClient) => {
+client.once(Events.ClientReady, async (readyClient) => {
   logger.info(`Bot conectado como ${readyClient.user.tag}`);
   logger.info(`Sirviendo ${readyClient.guilds.cache.size} servidores`);
+
+  await testApiConnection();
 
   client.user?.setActivity('/ayuda | Clash Royale', { type: 3 }); // Watching
 

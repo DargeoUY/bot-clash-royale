@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { BotCommand } from '../types';
 import { autoCreateSetup } from '../services/auto-setup.service';
 import { errorEmbed, EMBED_COLOR } from '../utils/embeds';
@@ -63,7 +63,7 @@ export const autoSetup: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('auto-setup')
     .setDescription('Configuración inicial del bot (líderes) — crea canales, roles y guía')
-    .setDefaultMemberPermissions('0')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((option) =>
       option
         .setName('clan_tag')

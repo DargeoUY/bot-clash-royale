@@ -16,12 +16,12 @@ async function executeEstado(interaction: ChatInputCommandInteraction): Promise<
 
     const embed = new EmbedBuilder()
       .setTitle('⚔️ Estado de la Guerra')
-      .setDescription(`River Race — Temporada ${race.seasonId}`)
+      .setDescription(`River Race — Temporada ${race.seasonId || 'actual'}`)
       .setColor(EMBED_COLOR)
       .addFields(
         { name: 'Fama del clan', value: `${clan?.fame || 0}`, inline: true },
         { name: 'Participantes', value: `${clan?.participants?.length || 0}`, inline: true },
-        { name: 'Estado', value: race.state === 'matched' ? 'En curso' : race.state, inline: true },
+        { name: 'Estado', value: race.state === 'matched' ? 'En curso' : race.state === 'full' ? 'Finalizada' : race.state === 'ended' ? 'Terminada' : race.state, inline: true },
       );
 
     if (clan?.participants && clan.participants.length > 0) {

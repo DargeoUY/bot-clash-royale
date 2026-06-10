@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
 import { BotCommand } from '../types';
 import { errorEmbed, createEmbed } from '../utils/embeds';
 import prisma from '../database/prisma';
@@ -129,7 +129,7 @@ export const botConfig: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('config')
     .setDescription('Administrar configuración del bot (líderes)')
-    .setDefaultMemberPermissions('0')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((sub) =>
       sub
         .setName('canal-guia')

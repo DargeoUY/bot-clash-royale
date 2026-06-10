@@ -10,7 +10,14 @@ function parseSafeDate(value: string | undefined | null): Date | null {
   if (!value) return null;
   try {
     const d = new Date(value);
-    return isNaN(d.getTime()) ? null : d;
+    if (!isNaN(d.getTime())) return d;
+    const m = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(?:\.(\d+))?Z$/);
+    if (m) {
+      const iso = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}.${m[7] || '000'}Z`;
+      const parsed = new Date(iso);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
   } catch {
     return null;
   }
