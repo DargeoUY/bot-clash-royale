@@ -50,7 +50,10 @@ async function loadPreviousSnapshot(clanTag: string): Promise<{ date: string; st
   const cfg = await prisma.botConfig.findUnique({ where: { key } });
   if (!cfg) return null;
   try {
-    const data: { date: string; stats: PlayerStats[] } = JSON.parse(cfg.value);
+    const raw = JSON.parse(cfg.value);
+    // Migrar formato viejo (array) a nuevo ({date, stats})
+    if (Array.isArray(raw)) return null;
+    const data = raw as { date: string; stats: PlayerStats[] };
     return { date: data.date, stats: new Map(data.stats.map((s) => [s.tag, s])) };
   } catch {
     return null;
