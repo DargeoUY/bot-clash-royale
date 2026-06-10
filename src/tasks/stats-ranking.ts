@@ -115,7 +115,7 @@ export async function publishStatsRanking(
   const today = new Date().toISOString().split('T')[0];
   const snapshot = await loadPreviousSnapshot(clanTag);
   const prev = snapshot?.stats ?? null;
-  const isFirstDay = !snapshot || snapshot.date === today;
+  const isFirstDay = !snapshot;
   const deltas: DeltaStats[] = [];
 
   for (const c of current) {
