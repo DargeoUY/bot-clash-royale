@@ -5,4 +5,5 @@ export interface BotCommand {
   execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
   adminOnly?: boolean;
   registeredOnly?: boolean;
+  cooldownSeconds?: number;
 }

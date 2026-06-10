@@ -3,6 +3,8 @@ import logger from '../config/logger';
 import { commands } from '../commands';
 import { errorEmbed, isAdmin } from '../utils/embeds';
 
+const cooldowns = new Map<string, number>();
+
 export async function handleInteraction(interaction: Interaction): Promise<void> {
   if (!interaction.isChatInputCommand()) return;
 
@@ -18,6 +20,22 @@ export async function handleInteraction(interaction: Interaction): Promise<void>
       ephemeral: true,
     });
     return;
+  }
+
+  // Cooldown check
+  if (command.cooldownSeconds) {
+    const key = `${interaction.commandName}_${interaction.user.id}`;
+    const lastUsed = cooldowns.get(key);
+    const now = Date.now();
+    if (lastUsed && (now - lastUsed) < command.cooldownSeconds * 1000) {
+      const remaining = Math.ceil((command.cooldownSeconds * 1000 - (now - lastUsed)) / 1000);
+      await interaction.reply({
+        embeds: [errorEmbed('Cooldown', `Esperá ${remaining}s para usar /${interaction.commandName} de nuevo.`)],
+        ephemeral: true,
+      });
+      return;
+    }
+    cooldowns.set(key, now);
   }
 
   try {

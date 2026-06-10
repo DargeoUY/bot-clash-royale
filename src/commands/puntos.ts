@@ -202,7 +202,7 @@ export const ranking: BotCommand = {
         ),
     )
     .addSubcommand((sub) =>
-      sub.setName('stats').setDescription('Ranking de estadísticas (victorias/derrotas/win rate)'),
+      sub.setName('stats').setDescription('Ranking de estadísticas: victorias, donaciones, trofeos, 3-coronas'),
     ),
   execute: async (interaction) => {
     const sub = interaction.options.getSubcommand();
@@ -211,12 +211,13 @@ export const ranking: BotCommand = {
       const clanTag = await getGuildClanTag(interaction.guildId!);
       try {
         await publishStatsRanking(interaction.client, clanTag, interaction.guildId!);
-        await interaction.editReply({ content: '✅ Ranking de stats publicado en el canal configurado.' });
+        await interaction.editReply({ content: '✅ Ranking de stats publicado.' });
       } catch {
-        await interaction.editReply({ embeds: [errorEmbed('Error', 'No se pudo generar el ranking de stats.')] });
+        await interaction.editReply({ embeds: [errorEmbed('Error', 'No se pudo generar el ranking.')] });
       }
     } else {
       await ejecutarRanking(interaction);
     }
   },
+  cooldownSeconds: 300,
 };

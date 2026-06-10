@@ -14,6 +14,9 @@ interface PlayerStats {
   losses: number;
   battleCount: number;
   winRate: number;
+  donations: number;
+  trophies: number;
+  threeCrowns: number;
 }
 
 let statsTask: cron.ScheduledTask | null = null;
@@ -42,6 +45,9 @@ export async function publishStatsRanking(
         losses: player.losses,
         battleCount: player.battleCount,
         winRate: rate,
+        donations: player.totalDonations || 0,
+        trophies: player.trophies,
+        threeCrowns: player.threeCrownWins || 0,
       });
     } catch (err) {
       errors++;
@@ -56,8 +62,12 @@ export async function publishStatsRanking(
 
   const topWins = [...stats].sort((a, b) => b.wins - a.wins);
   const topRate = [...stats].sort((a, b) => b.winRate - a.winRate);
+  const topDonations = [...stats].sort((a, b) => b.donations - a.donations);
+  const topTrophies = [...stats].sort((a, b) => b.trophies - a.trophies);
+  const topCrowns = [...stats].sort((a, b) => b.threeCrowns - a.threeCrowns);
   const totalWins = stats.reduce((s, p) => s + p.wins, 0);
   const totalLosses = stats.reduce((s, p) => s + p.losses, 0);
+  const totalDonations = stats.reduce((s, p) => s + p.donations, 0);
   const clanRate = (totalWins + totalLosses) > 0
     ? Math.round((totalWins / (totalWins + totalLosses)) * 100)
     : 0;
@@ -100,23 +110,36 @@ export async function publishStatsRanking(
     const embed = new EmbedBuilder()
       .setTitle('📊 Ranking de Estadísticas del Clan')
       .setColor(EMBED_COLOR)
-      .setDescription(`**${members.length}** jugadores | **${totalWins.toLocaleString()}** victorias | **${totalLosses.toLocaleString()}** derrotas | **${clanRate}%** win rate del clan`)
+      .setDescription(`**${members.length}** jugadores | **${totalWins.toLocaleString()}** ✅ | **${totalLosses.toLocaleString()}** ❌ | **${clanRate}%** WR | **${totalDonations.toLocaleString()}** 💎`)
       .setFooter({ text: `Actualizado cada 24h | Errores: ${errors}` })
       .setTimestamp();
 
-    const topWinsList = topWins.slice(0, 10).map((p, i) => {
-      const m = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-      return `${m} **${p.name}** — ${p.wins}V / ${p.losses}D (${p.winRate}%)`;
+    const topWinsList = topWins.slice(0, 5).map((p, i) => {
+      const m = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+      return `\`${m}\` **${p.name}** — ${p.wins}V / ${p.losses}D (${p.winRate}%)`;
     }).join('\n');
 
-    embed.addFields({ name: '🏆 Top Victorias', value: topWinsList || 'Sin datos', inline: false });
-
-    const topRateList = topRate.slice(0, 10).map((p, i) => {
-      const m = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-      return `${m} **${p.name}** — ${p.winRate}%`;
+    const topRateList = topRate.slice(0, 5).map((p, i) => {
+      const m = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+      return `\`${m}\` **${p.name}** — ${p.winRate}%`;
     }).join('\n');
 
-    embed.addFields({ name: '🎯 Top Win Rate', value: topRateList || 'Sin datos', inline: false });
+    const topDonationsList = topDonations.slice(0, 5).map((p, i) => {
+      const m = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+      return `\`${m}\` **${p.name}** — ${p.donations.toLocaleString()} 💎`;
+    }).join('\n');
+
+    const topCrownsList = topCrowns.slice(0, 5).map((p, i) => {
+      const m = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+      return `\`${m}\` **${p.name}** — ${p.threeCrowns} 👑`;
+    }).join('\n');
+
+    embed.addFields(
+      { name: '🏆 Top Victorias', value: topWinsList || 'Sin datos', inline: false },
+      { name: '🎯 Top Win Rate', value: topRateList || 'Sin datos', inline: false },
+      { name: '💎 Top Donaciones', value: topDonationsList || 'Sin datos', inline: false },
+      { name: '👑 Top 3-Coronas', value: topCrownsList || 'Sin datos', inline: false },
+    );
 
     await channel.send({ embeds: [embed] });
     logger.info(`Stats ranking published to ${channel.name} (${stats.length} players)`);
