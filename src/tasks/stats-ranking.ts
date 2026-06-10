@@ -227,6 +227,7 @@ export async function publishStatsRanking(
       const wr = new EmbedBuilder()
         .setTitle('⚔️ Victorias / Derrotas')
         .setColor(0xE74C3C)
+        .setThumbnail('https://cdn.royaleapi.com/static/ui/battle.png')
         .setDescription(formatTop(wrLines, 10));
       await channel.send({ embeds: [wr] });
     }
@@ -239,6 +240,7 @@ export async function publishStatsRanking(
       const don = new EmbedBuilder()
         .setTitle('💎 Donaciones de Cartas')
         .setColor(0xFF69B4)
+        .setThumbnail('https://cdn.royaleapi.com/static/ui/cards.png')
         .setDescription(formatTop(donLines, 10));
       await channel.send({ embeds: [don] });
     }
@@ -252,6 +254,7 @@ export async function publishStatsRanking(
       const trop = new EmbedBuilder()
         .setTitle('🏆 Mayor Cantidad de Copas')
         .setColor(0xFFD700)
+        .setImage('https://fotografias-2.larazon.es/clipping/cmsimages02/2020/12/10/DB8E7760-08CA-42AA-B0B1-61A2D9C6060B/98.jpg?crop=4096,2305,x0,y213&width=1900&height=1069&optimize=low&format=webply')
         .setDescription(formatTop(tropLines, 10));
       await channel.send({ embeds: [trop] });
     }
@@ -264,6 +267,7 @@ export async function publishStatsRanking(
       const war = new EmbedBuilder()
         .setTitle(`⚔️ Guerra de Clanes (${totalFame} fama)`)
         .setColor(0x9B59B6)
+        .setThumbnail('https://cdn.royaleapi.com/static/ui/war.png')
         .setDescription(formatTop(warLines, 10));
       await channel.send({ embeds: [war] });
     } else {
