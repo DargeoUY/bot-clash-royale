@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asistente Royale — Bot de Clash Royale para Discord</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --card: #16213e;
+    --accent: #e74c3c;
+    --gold: #f1c40f;
+    --green: #2ecc71;
+    --text: #e0e0e0;
+    --muted: #8892b0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center;
+    padding: 80px 20px 60px;
+    background: linear-gradient(135deg, #0f3460, #16213e);
+    border-bottom: 3px solid var(--accent);
+  }
+  .hero h1 { font-size: 2.6em; color: #fff; margin-bottom: 10px; }
+  .hero .tagline { font-size: 1.2em; color: var(--muted); }
+  .hero .badge {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 10px 24px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 6px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  /* ── Sections ── */
+  section { padding: 50px 0; }
+  section h2 {
+    font-size: 1.8em;
+    color: var(--gold);
+    margin-bottom: 25px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--accent);
+    display: inline-block;
+  }
+
+  /* ── Features Grid ── */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .feature {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 24px;
+    border-left: 4px solid var(--accent);
+  }
+  .feature h3 { color: #fff; margin-bottom: 8px; font-size: 1.1em; }
+  .feature p { color: var(--muted); font-size: 0.95em; }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0 35px;
+    background: var(--card);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  th {
+    background: #0f3460;
+    color: #fff;
+    padding: 14px 16px;
+    text-align: left;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #1e3a5f;
+    font-size: 0.95em;
+  }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { font-family: 'Consolas', monospace; color: var(--accent); font-weight: 600; }
+  .cooldown { color: var(--gold); font-size: 0.85em; }
+
+  /* ── Task Cards ── */
+  .tasks { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
+  .task {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 20px;
+    border-top: 3px solid var(--accent);
+  }
+  .task .freq { color: var(--gold); font-weight: 600; font-size: 0.85em; }
+  .task h4 { color: #fff; margin: 6px 0; }
+  .task .meta { color: var(--muted); font-size: 0.9em; }
+
+  /* ── Setup Steps ── */
+  .steps { counter-reset: step; }
+  .step {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 15px;
+    position: relative;
+    padding-left: 70px;
+  }
+  .step::before {
+    counter-increment: step;
+    content: counter(step);
+    position: absolute;
+    left: 20px; top: 18px;
+    width: 36px; height: 36px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1em;
+  }
+  .step code {
+    background: #0f3460;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: var(--gold);
+  }
+
+  /* ── Code blocks ── */
+  pre {
+    background: #0d1117;
+    color: #c9d1d9;
+    padding: 16px 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 0.9em;
+    margin: 10px 0;
+    border: 1px solid #30363d;
+  }
+  pre code { background: none; color: var(--green); }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-size: 0.85em;
+    border-top: 1px solid #1e3a5f;
+  }
+
+  .highlight { color: var(--gold); }
+  .danger { color: var(--accent); }
+  .note {
+    background: #1e3a5f;
+    border-left: 4px solid var(--gold);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 20px 0;
+    font-size: 0.95em;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ HERO ═══ -->
+<div class="hero">
+  <h1>⚔️ Asistente Royale</h1>
+  <p class="tagline">Bot de Discord para administración de clanes de Clash Royale</p>
+  <p style="margin-top:10px; color: var(--muted);">Tracking de guerras · Inactividad · WhatsApp · Ranking diario · Puntos</p>
+  <a href="#setup" class="badge">🚀 Cómo instalar</a>
+</div>
+
+<div class="container">
+
+<!-- ═══ FEATURES ═══ -->
+<section>
+  <h2>✨ Funcionalidades</h2>
+  <div class="features">
+    <div class="feature">
+      <h3>🔄 Sync Automático</h3>
+      <p>Importa miembros del clan cada 1 hora. Detecta altas, bajas y reingresos automáticamente.</p>
+    </div>
+    <div class="feature">
+      <h3>⚠️ Detección de Inactividad</h3>
+      <p>Umbrales configurables (2–14 días). Notificaciones automáticas al canal de alertas. Modo vacaciones.</p>
+    </div>
+    <div class="feature">
+      <h3>📊 Ranking Diario</h3>
+      <p>Victorias/Derrotas, Donaciones, Copas y Guerra de Clanes. Stats diarias con delta real (no totales históricos).</p>
+    </div>
+    <div class="feature">
+      <h3>📱 Grupo de WhatsApp</h3>
+      <p>Verifica que el jugador esté en el clan antes de compartir el link del grupo. Por servidor.</p>
+    </div>
+    <div class="feature">
+      <h3>⭐ Sistema de Puntos</h3>
+      <p>Puntos por guerra, actividad, donaciones. Bonus y penalizaciones manuales. Ranking semanal/mensual.</p>
+    </div>
+    <div class="feature">
+      <h3>🏰 Multi-Servidor</h3>
+      <p>Cada guild de Discord tiene su propio clan, canales, roles y configuraciones. Sin mezclar datos.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ COMMANDS ═══ -->
+<section>
+  <h2>👤 Comandos para Jugadores</h2>
+  <table>
+    <tr><th>Comando</th><th>Descripción</th></tr>
+    <tr><td>/perfil #TAG</td><td>Perfil completo + últimas 5 batallas (V/D/WR)</td></tr>
+    <tr><td>/registrar #TAG</td><td>Vincular cuenta de CR con Discord</td></tr>
+    <tr><td>/puntos ver #TAG</td><td>Ver puntos acumulados</td></tr>
+    <tr><td>/guerra estado</td><td>Estado actual de la guerra de clanes</td></tr>
+    <tr><td>/ausencia &lt;dias&gt;</td><td>Activar modo vacaciones (no perdés puntos)</td></tr>
+    <tr><td>/whatsapp</td><td>Formulario para verificar nombre y obtener link del grupo</td></tr>
+    <tr><td>/ayuda</td><td>Mostrar guía de uso</td></tr>
+  </table>
+
+  <h2>⚙️ Comandos para Líderes</h2>
+  <table>
+    <tr><th>Comando</th><th>Descripción</th><th>Cooldown</th></tr>
+    <tr><td>/inactivos</td><td>Miembros inactivos (consulta directa a la API)</td><td>—</td></tr>
+    <tr><td>/ranking stats</td><td>Ranking diario: V/D, Donaciones, Copas, Guerra</td><td class="cooldown">5 min</td></tr>
+    <tr><td>/ranking puntos</td><td>Ranking de puntos (semanal/mensual/general)</td><td>—</td></tr>
+    <tr><td>/clan info</td><td>Información del clan</td><td>—</td></tr>
+    <tr><td>/clan sincronizar</td><td>Forzar sync desde la API de CR</td><td>—</td></tr>
+    <tr><td>/clan no-registrados</td><td>Miembros sin Discord vinculado</td><td>—</td></tr>
+    <tr><td>/config link-whatsapp</td><td>Setear link del grupo de WhatsApp</td><td>—</td></tr>
+    <tr><td>/config umbral-inactividad</td><td>Cambiar días para considerar inactivo</td><td>—</td></tr>
+    <tr><td>/setup #TAG</td><td>Vincular servidor a un clan</td><td>—</td></tr>
+    <tr><td>/auto-setup</td><td>Crear canales, roles y categoría automáticamente</td><td>—</td></tr>
+    <tr><td>/exportar</td><td>Exportar datos del clan a CSV</td><td>—</td></tr>
+    <tr><td>/diagnostico</td><td>Testear API, DB y conexiones</td><td class="cooldown">2 min</td></tr>
+  </table>
+</section>
+
+<!-- ═══ TASKS ═══ -->
+<section>
+  <h2>⏰ Tareas Automáticas</h2>
+  <div class="tasks">
+    <div class="task">
+      <div class="freq">Cada 1 hora</div>
+      <h4>Sync de Clan</h4>
+      <div class="meta">Importa miembros y stats desde la API. Detecta altas/bajas.</div>
+    </div>
+    <div class="task">
+      <div class="freq">Cada 30 min</div>
+      <h4>Sync de Guerra</h4>
+      <div class="meta">Sincroniza datos de River Race (fama, decks, participantes).</div>
+    </div>
+    <div class="task">
+      <div class="freq">Cada 24h — 8 AM UTC</div>
+      <h4>Ranking de Stats</h4>
+      <div class="meta">Publica ranking diario en canal <span class="highlight">🏆・ranking-premios</span>.</div>
+    </div>
+    <div class="task">
+      <div class="freq">Cada 6 horas</div>
+      <h4>Check de Inactividad</h4>
+      <div class="meta">Detecta inactivos y notifica en <span class="danger">🚨・alertas-inactividad</span>.</div>
+    </div>
+    <div class="task">
+      <div class="freq">Cada lunes</div>
+      <h4>Reporte Semanal</h4>
+      <div class="meta">Resumen de guerra y actividad en <span class="highlight">⚔️・guerra-reportes</span>.</div>
+    </div>
+    <div class="task">
+      <div class="freq">Día 1 del mes</div>
+      <h4>Reporte Mensual</h4>
+      <div class="meta">Resumen mensual con top jugadores.</div>
+    </div>
+    <div class="task">
+      <div class="freq">Cada 12 horas</div>
+      <h4>Actualizar Roles</h4>
+      <div class="meta">Sincroniza roles de Discord según actividad.</div>
+    </div>
+    <div class="task">
+      <div class="freq">Cada 24h — 4 AM</div>
+      <h4>Backup BD</h4>
+      <div class="meta">Copia de seguridad de PostgreSQL.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CHANNELS & ROLES ═══ -->
+<section>
+  <h2>📂 Canales y Roles</h2>
+  <p style="margin-bottom: 15px;">Creados automáticamente con <code>/auto-setup</code> dentro de <span class="highlight">🏰 CLASH ROYALE</span>:</p>
+
+  <table>
+    <tr><th>Canal</th><th>Uso</th></tr>
+    <tr><td>📋・guia-de-uso</td><td>Guía de comandos (solo lectura)</td></tr>
+    <tr><td>👋・registro</td><td>Miembros se registran</td></tr>
+    <tr><td>⚔️・guerra-reportes</td><td>Reportes de guerra semanales/mensuales</td></tr>
+    <tr><td>🚨・alertas-inactividad</td><td>Notificaciones de inactividad</td></tr>
+    <tr><td>🏆・ranking-premios</td><td>Ranking diario de stats</td></tr>
+    <tr><td>👥・cambios-miembros</td><td>Altas y bajas del clan</td></tr>
+  </table>
+
+  <table style="margin-top: 30px;">
+    <tr><th>Rol</th><th>Color</th><th>Asignado a</th></tr>
+    <tr><td>🏆 Campeón del Mes</td><td style="color:#FFD700">Dorado</td><td>Top 1 del ranking mensual</td></tr>
+    <tr><td>⚔️ Guerrero Élite</td><td style="color:#9B59B6">Púrpura</td><td>Top guerra semanal</td></tr>
+    <tr><td>💎 Donador Legendario</td><td style="color:#FF69B4">Rosa</td><td>Top donador</td></tr>
+    <tr><td>✅ Activo</td><td style="color:#2ECC71">Verde</td><td>Miembros activos</td></tr>
+    <tr><td>🏖️ Ausente</td><td style="color:#F39C12">Naranja</td><td>Modo vacaciones</td></tr>
+    <tr><td>⛔ Inactivo</td><td style="color:#E74C3C">Rojo</td><td>Inactivo detectado</td></tr>
+    <tr><td>🆕 Recluta</td><td style="color:#3498DB">Azul</td><td>Recién registrado</td></tr>
+  </table>
+</section>
+
+<!-- ═══ INACTIVITY ═══ -->
+<section>
+  <h2>⚠️ Sistema de Inactividad</h2>
+  <p style="margin-bottom: 15px;">Umbrales configurables (default 2 días). La escala se ajusta según el tamaño del clan:</p>
+  <table>
+    <tr><th>Tamaño del Clan</th><th>Aviso</th><th>Inactivo</th><th>Expulsión sugerida</th></tr>
+    <tr><td>43 – 50</td><td>2 días</td><td>4 días</td><td>6 días</td></tr>
+    <tr><td>30 – 42</td><td>2 días</td><td>5 días</td><td>10 días</td></tr>
+    <tr><td>&lt; 30</td><td>2 días</td><td>7 días</td><td>14 días</td></tr>
+  </table>
+  <div class="note">
+    🏖️ <strong>Modo Vacaciones:</strong> <code>/ausencia &lt;dias&gt;</code> pausa las notificaciones (máx 20 días/mes).
+  </div>
+</section>
+
+<!-- ═══ WHATSAPP ═══ -->
+<section>
+  <h2>📱 Flujo del Grupo de WhatsApp</h2>
+  <div class="steps">
+    <div class="step">
+      <strong>Líder configura el link:</strong><br>
+      <code>/config link-whatsapp https://chat.whatsapp.com/...</code>
+    </div>
+    <div class="step">
+      <strong>Miembro abre el formulario:</strong><br>
+      <code>/whatsapp</code> → completa nombre en el juego y número de celular.
+    </div>
+    <div class="step">
+      <strong>El bot verifica contra el clan:</strong><br>
+      Compara el nombre ingresado con los miembros del clan vía API.
+    </div>
+    <div class="step">
+      <strong>Resultado:</strong><br>
+      ✅ Coincide → guarda datos + muestra el link del grupo.<br>
+      ❌ No coincide → "No verificado, el nombre no está en el clan."
+    </div>
+  </div>
+</section>
+
+<!-- ═══ POINTS ═══ -->
+<section>
+  <h2>⭐ Sistema de Puntos</h2>
+  <table>
+    <tr><th>Acción</th><th>Puntos</th></tr>
+    <tr><td>Batalla de guerra ganada</td><td>+3</td></tr>
+    <tr><td>Batalla de guerra jugada</td><td>+1</td></tr>
+    <tr><td>Deck usado en guerra</td><td>+1</td></tr>
+    <tr><td>Fama en River Race</td><td>+0.5</td></tr>
+    <tr><td>Defensa de barco</td><td>+2</td></tr>
+    <tr><td>Participación completa semanal</td><td>+5</td></tr>
+    <tr><td>Top donador mensual</td><td>+10</td></tr>
+    <tr><td class="danger">Inactividad (por día)</td><td class="danger">-2</td></tr>
+  </table>
+  <div class="note">Los puntos se resetean al inicio de cada mes.</div>
+</section>
+
+<!-- ═══ SETUP ═══ -->
+<section id="setup">
+  <h2>🚀 Cómo Instalar en tu Servidor</h2>
+  <div class="steps">
+    <div class="step">
+      <strong>Creá una API Key en Supercell:</strong><br>
+      Entrá a <a href="https://developer.clashroyale.com" style="color:var(--gold)">developer.clashroyale.com</a>, creá una key y en "Whitelist IP" poné: <code>45.79.218.79</code>
+    </div>
+    <div class="step">
+      <strong>Creá un Bot en Discord:</strong><br>
+      Andá a <a href="https://discord.com/developers/applications" style="color:var(--gold)">Discord Developer Portal</a>, creá una aplicación, andá a Bot y copiá el token.
+    </div>
+    <div class="step">
+      <strong>Invitá el Bot a tu servidor:</strong><br>
+      Usá este link (reemplazá CLIENT_ID):<br>
+      <a href="https://discord.com/oauth2/authorize?client_id=TU_CLIENT_ID&permissions=268553296&scope=bot%20applications.commands" style="color:var(--gold)">https://discord.com/oauth2/authorize?client_id=...</a>
+    </div>
+    <div class="step">
+      <strong>Cloná el repositorio y configurá:</strong>
+      <pre><code>git clone https://github.com/DargeoUY/bot-clash-royale.git
+cd bot-clash-royale
+cp .env.example .env   # editar con tus tokens
+docker compose up -d</code></pre>
+    </div>
+    <div class="step">
+      <strong>En Discord:</strong><br>
+      <code>/auto-setup #CLAN_TAG</code>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ TECH ═══ -->
+<section>
+  <h2>🔧 Stack Técnico</h2>
+  <table>
+    <tr><th>Componente</th><th>Tecnología</th></tr>
+    <tr><td>Runtime</td><td>Node.js 20</td></tr>
+    <tr><td>Lenguaje</td><td>TypeScript 5</td></tr>
+    <tr><td>Bot</td><td>discord.js v14</td></tr>
+    <tr><td>ORM</td><td>Prisma v5</td></tr>
+    <tr><td>Base de Datos</td><td>PostgreSQL 16</td></tr>
+    <tr><td>Despliegue</td><td>Docker + Docker Compose</td></tr>
+    <tr><td>API Proxy</td><td>proxy.royaleapi.dev (IP fija)</td></tr>
+    <tr><td>Rate Limit</td><td>250 req/min, 200ms entre requests</td></tr>
+  </table>
+</section>
+
+</div>
+
+<footer>
+  Asistente Royale · Clash Royale no es responsable de este contenido.<br>
+  <a href="https://github.com/DargeoUY/bot-clash-royale" style="color:var(--muted)">GitHub</a> · MIT License
+</footer>
+
+</body>
+</html>
