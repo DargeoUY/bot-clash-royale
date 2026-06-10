@@ -13,8 +13,6 @@ interface PlayerStats {
   name: string;
   wins: number;
   losses: number;
-  battleCount: number;
-  winRate: number;
   donations: number;
   trophies: number;
 }
@@ -26,12 +24,46 @@ interface WarStats {
   decksUsed: number;
 }
 
-function formatTop(list: string[], limit: number): string {
-  if (list.length === 0) return 'Sin datos';
-  return list.slice(0, limit).join('\n');
+interface DeltaStats {
+  tag: string;
+  name: string;
+  wins: number;
+  losses: number;
+  winRate: number;
+  donations: number;
+  trophies: number;
+}
+
+function medal(i: number): string {
+  return i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`;
+}
+
+function formatTop(lines: string[], limit: number): string {
+  return lines.length === 0 ? 'Sin datos' : lines.slice(0, limit).join('\n');
 }
 
 let statsTask: cron.ScheduledTask | null = null;
+
+async function loadPreviousSnapshot(clanTag: string): Promise<Map<string, PlayerStats> | null> {
+  const key = `stats_snapshot_${clanTag}`;
+  const cfg = await prisma.botConfig.findUnique({ where: { key } });
+  if (!cfg) return null;
+  try {
+    const data: PlayerStats[] = JSON.parse(cfg.value);
+    return new Map(data.map((s) => [s.tag, s]));
+  } catch {
+    return null;
+  }
+}
+
+async function saveSnapshot(clanTag: string, stats: PlayerStats[]): Promise<void> {
+  const key = `stats_snapshot_${clanTag}`;
+  await prisma.botConfig.upsert({
+    where: { key },
+    update: { value: JSON.stringify(stats) },
+    create: { key, value: JSON.stringify(stats) },
+  });
+}
 
 export async function publishStatsRanking(
   client: Client,
@@ -41,22 +73,17 @@ export async function publishStatsRanking(
   logger.info(`Stats ranking: fetching data for ${clanTag}...`);
 
   const members = await getClanMembers(clanTag);
-  const stats: PlayerStats[] = [];
+  const current: PlayerStats[] = [];
   let errors = 0;
 
   for (const member of members) {
     try {
       const player = await getPlayerInfo(member.tag);
-      const rate = player.battleCount > 0
-        ? Math.round((player.wins / player.battleCount) * 100)
-        : 0;
-      stats.push({
+      current.push({
         tag: player.tag,
         name: player.name,
         wins: player.wins,
         losses: player.losses,
-        battleCount: player.battleCount,
-        winRate: rate,
         donations: player.totalDonations || 0,
         trophies: player.trophies,
       });
@@ -66,15 +93,10 @@ export async function publishStatsRanking(
     }
   }
 
-  if (stats.length === 0) {
+  if (current.length === 0) {
     logger.warn(`No stats data for ${clanTag}`);
     return;
   }
-
-  // Rankings
-  const byWinRate = [...stats].sort((a, b) => b.winRate - a.winRate);
-  const byDonations = [...stats].sort((a, b) => b.donations - a.donations);
-  const byTrophies = [...stats].sort((a, b) => b.trophies - a.trophies);
 
   // War stats
   const warStats: WarStats[] = [];
@@ -82,28 +104,55 @@ export async function publishStatsRanking(
     const race = await getCurrentRiverRace(clanTag);
     if (race.clan?.participants) {
       for (const p of race.clan.participants) {
-        warStats.push({
-          tag: p.tag,
-          name: p.name,
-          fame: p.fame,
-          decksUsed: p.decksUsed,
-        });
+        warStats.push({ tag: p.tag, name: p.name, fame: p.fame, decksUsed: p.decksUsed });
       }
     }
   } catch { /* ok */ }
+
+  // Daily deltas
+  const prev = await loadPreviousSnapshot(clanTag);
+  const deltas: DeltaStats[] = [];
+  let isFirstDay = !prev;
+
+  for (const c of current) {
+    const p = prev?.get(c.tag);
+    const dw = p ? c.wins - p.wins : c.wins;
+    const dl = p ? c.losses - p.losses : c.losses;
+    const dd = p ? c.donations - p.donations : c.donations;
+    const dt = p ? c.trophies - p.trophies : c.trophies;
+    const total = dw + dl;
+    const wr = total > 0 ? Math.round((dw / total) * 100) : 0;
+
+    deltas.push({
+      tag: c.tag,
+      name: c.name,
+      wins: dw,
+      losses: dl,
+      winRate: wr,
+      donations: dd,
+      trophies: dt,
+    });
+  }
+
+  // Save current as baseline for next day
+  await saveSnapshot(clanTag, current);
+
+  // Rankings (daily where possible, otherwise lifetime)
+  const byDailyWR = [...deltas]
+    .filter((d) => d.wins + d.losses > 0)
+    .sort((a, b) => b.winRate - a.winRate || b.wins - a.wins);
+  const byDonations = [...deltas].sort((a, b) => b.donations - a.donations);
+  const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies);
   const byFame = [...warStats].sort((a, b) => b.fame - a.fame);
 
   // Totals
-  const totalWins = stats.reduce((s, p) => s + p.wins, 0);
-  const totalLosses = stats.reduce((s, p) => s + p.losses, 0);
-  const totalDonations = stats.reduce((s, p) => s + p.donations, 0);
-  const clanRate = (totalWins + totalLosses) > 0
-    ? Math.round((totalWins / (totalWins + totalLosses)) * 100)
-    : 0;
+  const totalDailyW = deltas.reduce((s, d) => s + d.wins, 0);
+  const totalDailyL = deltas.reduce((s, d) => s + d.losses, 0);
+  const totalDonations = deltas.reduce((s, d) => s + d.donations, 0);
   const totalFame = warStats.reduce((s, p) => s + p.fame, 0);
 
-  // Save to database
-  for (const s of stats) {
+  // Save players to DB
+  for (const s of current) {
     try {
       await prisma.player.upsert({
         where: { tag: s.tag },
@@ -113,7 +162,7 @@ export async function publishStatsRanking(
     } catch { /* skip */ }
   }
 
-  // Post to channel
+  // Channel
   const channelKey = `channel_stats_${guildId}`;
   let cfg = await prisma.botConfig.findUnique({ where: { key: channelKey } });
   if (!cfg) {
@@ -128,57 +177,76 @@ export async function publishStatsRanking(
     const channel = (await client.channels.fetch(cfg.value)) as TextChannel;
     if (!channel) return;
 
-    const embed = new EmbedBuilder()
-      .setTitle('📊 Ranking del Clan — Semanal')
+    const label = isFirstDay ? '📊 Ranking del Clan (Totales — 1er día de tracking)' : '📊 Ranking del Clan — Diario';
+    const extra = isFirstDay ? '\n📌 Las estadísticas **diarias** aparecerán mañana.' : '';
+
+    // ── Header ──
+    const header = new EmbedBuilder()
+      .setTitle(label)
       .setColor(EMBED_COLOR)
       .setDescription(
-        `**${members.length}** jugadores | **${clanRate}%** WR global | ` +
-        `✅ ${totalWins.toLocaleString()}V ❌ ${totalLosses.toLocaleString()}D | ` +
-        `💎 ${totalDonations.toLocaleString()} donaciones`
+        `**${members.length}** jugadores | ✅ ${totalDailyW}V ❌ ${totalDailyL}D hoy | 💎 ${totalDonations.toLocaleString()} donaciones${extra}`
       )
       .setFooter({ text: `Actualizado cada 24h | Errores: ${errors}` })
       .setTimestamp();
+    await channel.send({ embeds: [header] });
 
-    // ── Victorias/Derrotas (por win rate) ──
-    const wrList = byWinRate.map((p, i) => {
-      const m = i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`;
-      return `**${m}** **${p.name}** — ${p.wins}V / ${p.losses}D (${p.winRate}%)`;
-    });
-    embed.addFields({ name: '⚔️ Victorias / Derrotas', value: formatTop(wrList, 5) });
-
-    // ── Donaciones de Cartas ──
-    const donList = byDonations.map((p, i) => {
-      const m = i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`;
-      return `**${m}** **${p.name}** — ${p.donations.toLocaleString()} 💎`;
-    });
-    embed.addFields({ name: '💎 Donaciones de Cartas', value: formatTop(donList, 5) });
-
-    // ── Copas ──
-    const tropList = byTrophies.map((p, i) => {
-      const m = i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`;
-      return `**${m}** **${p.name}** — 🏆 ${p.trophies}`;
-    });
-    embed.addFields({ name: '🏆 Mayor Cantidad de Copas', value: formatTop(tropList, 5) });
-
-    // ── Guerra de Clanes ──
-    if (warStats.length > 0) {
-      const warList = byFame.map((p, i) => {
-        const m = i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`;
-        return `**${m}** **${p.name}** — ${p.fame} fama ⚡ ${p.decksUsed} decks`;
-      });
-      embed.addFields({
-        name: `⚔️ Guerra de Clanes (${totalFame} fama total)`,
-        value: formatTop(warList, 5),
-      });
-    } else {
-      embed.addFields({
-        name: '⚔️ Guerra de Clanes',
-        value: 'Sin guerra activa en este momento.',
-      });
+    // ── 1. Victorias / Derrotas ──
+    if (byDailyWR.length > 0) {
+      const wrLines = byDailyWR.map((d, i) =>
+        `**${medal(i)} ${d.name}**\n᛫ ${d.wins}V / ${d.losses}D — ${d.winRate}% WR`
+      );
+      const wr = new EmbedBuilder()
+        .setTitle('⚔️ Victorias / Derrotas')
+        .setColor(0xE74C3C)
+        .setDescription(formatTop(wrLines, 10));
+      await channel.send({ embeds: [wr] });
     }
 
-    await channel.send({ embeds: [embed] });
-    logger.info(`Stats ranking published to ${channel.name} (${stats.length} players)`);
+    // ── 2. Donaciones de Cartas ──
+    if (byDonations.some((d) => d.donations > 0)) {
+      const donLines = byDonations.map((d, i) =>
+        `**${medal(i)} ${d.name}**\n᛫ ${d.donations.toLocaleString()} cartas donadas`
+      );
+      const don = new EmbedBuilder()
+        .setTitle('💎 Donaciones de Cartas')
+        .setColor(0xFF69B4)
+        .setDescription(formatTop(donLines, 10));
+      await channel.send({ embeds: [don] });
+    }
+
+    // ── 3. Copas ──
+    if (byTrophies.length > 0) {
+      const tropLines = byTrophies.map((d, i) => {
+        const diff = d.trophies >= 0 ? `+${d.trophies}` : `${d.trophies}`;
+        return `**${medal(i)} ${d.name}**\n᛫ ${diff} copas`;
+      });
+      const trop = new EmbedBuilder()
+        .setTitle('🏆 Mayor Cantidad de Copas')
+        .setColor(0xFFD700)
+        .setDescription(formatTop(tropLines, 10));
+      await channel.send({ embeds: [trop] });
+    }
+
+    // ── 4. Guerra de Clanes ──
+    if (warStats.length > 0) {
+      const warLines = byFame.map((p, i) =>
+        `**${medal(i)} ${p.name}**\n᛫ ${p.fame} fama ⚡ ${p.decksUsed} decks`
+      );
+      const war = new EmbedBuilder()
+        .setTitle(`⚔️ Guerra de Clanes (${totalFame} fama)`)
+        .setColor(0x9B59B6)
+        .setDescription(formatTop(warLines, 10));
+      await channel.send({ embeds: [war] });
+    } else {
+      const war = new EmbedBuilder()
+        .setTitle('⚔️ Guerra de Clanes')
+        .setColor(0x9B59B6)
+        .setDescription('Sin guerra activa.');
+      await channel.send({ embeds: [war] });
+    }
+
+    logger.info(`Stats ranking published to ${channel.name} (${current.length} players)`);
   } catch (err) {
     logger.error(`Error publishing stats: ${(err as Error).message}`);
   }
