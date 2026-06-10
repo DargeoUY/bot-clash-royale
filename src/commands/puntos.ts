@@ -4,6 +4,7 @@ import { getGuildClanTag } from '../utils/guild';
 import { getPlayerPoints, getPointHistory, addPoints, getLeaderboard } from '../services/points.service';
 import { isValidPlayerTag, formatPlayerTag } from '../utils/validators';
 import { errorEmbed, successEmbed, EMBED_COLOR } from '../utils/embeds';
+import { publishStatsRanking } from '../tasks/stats-ranking';
 
 async function ejecutarVer(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
@@ -184,16 +185,38 @@ export const ranking: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('ranking')
     .setDescription('Top jugadores del clan')
-    .addStringOption((opt) =>
-      opt
-        .setName('periodo')
-        .setDescription('Período')
-        .setRequired(false)
-        .addChoices(
-          { name: 'Semanal', value: 'semanal' },
-          { name: 'Mensual', value: 'mensual' },
-          { name: 'General', value: 'general' },
+    .addSubcommand((sub) =>
+      sub
+        .setName('puntos')
+        .setDescription('Ranking por puntos')
+        .addStringOption((opt) =>
+          opt
+            .setName('periodo')
+            .setDescription('Período')
+            .setRequired(false)
+            .addChoices(
+              { name: 'Semanal', value: 'semanal' },
+              { name: 'Mensual', value: 'mensual' },
+              { name: 'General', value: 'general' },
+            ),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub.setName('stats').setDescription('Ranking de estadísticas (victorias/derrotas/win rate)'),
     ),
-  execute: ejecutarRanking,
+  execute: async (interaction) => {
+    const sub = interaction.options.getSubcommand();
+    if (sub === 'stats') {
+      await interaction.deferReply();
+      const clanTag = await getGuildClanTag(interaction.guildId!);
+      try {
+        await publishStatsRanking(interaction.client, clanTag, interaction.guildId!);
+        await interaction.editReply({ content: '✅ Ranking de stats publicado en el canal configurado.' });
+      } catch {
+        await interaction.editReply({ embeds: [errorEmbed('Error', 'No se pudo generar el ranking de stats.')] });
+      }
+    } else {
+      await ejecutarRanking(interaction);
+    }
+  },
 };
