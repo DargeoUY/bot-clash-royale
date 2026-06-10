@@ -20,11 +20,15 @@ async function executeInfo(interaction: ChatInputCommandInteraction): Promise<vo
   try {
     const clanInfo = await getClanInfo(clanTag, apiKey);
 
+    const badgeUrl = clanInfo.badgeUrls?.large
+      || `https://cdn.royaleapi.com/static/badge/${clanInfo.badgeId}.png`;
+
     const embed = new EmbedBuilder()
       .setTitle(`⚔️ ${clanInfo.name}`)
       .setDescription(clanInfo.description || 'Sin descripción')
       .setColor(EMBED_COLOR)
-      .setThumbnail(clanInfo.badgeUrls?.large || null)
+      .setThumbnail(badgeUrl)
+      .setImage(badgeUrl)
       .addFields(
         { name: 'Tag', value: clanInfo.tag, inline: true },
         { name: 'Miembros', value: `${clanInfo.members}/50`, inline: true },
