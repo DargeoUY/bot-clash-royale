@@ -10,7 +10,7 @@ const envSchema = z.object({
   CR_DEV_EMAIL: z.string().optional(),
   CR_DEV_PASSWORD: z.string().optional(),
   CR_API_KEY_ID: z.string().optional(),
-  CR_API_BASE_URL: z.string().url().default('https://api.clashroyale.com/v1'),
+  CR_API_BASE_URL: z.string().url().default('https://proxy.royaleapi.dev/v1'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL es requerido'),
   DB_USER: z.string().default('clashbot'),
   DB_PASSWORD: z.string().min(1, 'DB_PASSWORD es requerido'),
