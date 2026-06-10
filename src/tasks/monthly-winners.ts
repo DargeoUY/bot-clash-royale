@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { Client, TextChannel, EmbedBuilder } from 'discord.js';
 import prisma from '../database/prisma';
 import { getAllClanConfigs } from '../utils/guild';
+import { isTelegramConfigured, sendTelegramRanking } from '../services/telegram.service';
 import { EMBED_COLOR } from '../utils/embeds';
 import logger from '../config/logger';
 
@@ -72,6 +73,25 @@ export async function publishMonthlyWinners(
       { name: '⚔️ Participación en Guerra', value: lines.slice(0, half).join('\n') || '—', inline: true },
       { name: '\u200b', value: lines.slice(half).join('\n') || '—', inline: true },
     );
+  }
+
+  // Send to Telegram
+  if (isTelegramConfigured()) {
+    let tgText = `<b>🏆 Ranking Mensual — ${monthName}</b>\n\n`;
+    if (byTrophies.length > 0) {
+      tgText += '<b>🏆 Copas</b>\n';
+      for (let i = 0; i < Math.min(byTrophies.length, 5); i++) {
+        tgText += `${['🥇','🥈','🥉'][i] || `${i+1}`} <b>${byTrophies[i].name}</b> — +${byTrophies[i].trophies}\n`;
+      }
+      tgText += '\n';
+    }
+    if (byFame.length > 0) {
+      tgText += '<b>⚔️ Guerra</b>\n';
+      for (let i = 0; i < Math.min(byFame.length, 5); i++) {
+        tgText += `${['🥇','🥈','🥉'][i] || `${i+1}`} <b>${byFame[i].name}</b> — ${byFame[i].fame} fama\n`;
+      }
+    }
+    await sendTelegramRanking(tgText);
   }
 
   // Post to ranking channel

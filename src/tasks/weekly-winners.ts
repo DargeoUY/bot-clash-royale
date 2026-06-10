@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { Client, TextChannel, EmbedBuilder } from 'discord.js';
 import prisma from '../database/prisma';
 import { getAllClanConfigs } from '../utils/guild';
+import { isTelegramConfigured, sendTelegramRanking } from '../services/telegram.service';
 import { EMBED_COLOR } from '../utils/embeds';
 import logger from '../config/logger';
 
@@ -153,9 +154,18 @@ export async function publishWeeklyWinners(
     }
 
     embed.addFields({ name: w.roleName, value: `**${w.name}** — ${w.value}` });
-  }
+    }
 
-  // Post to ranking channel
+    // Send to Telegram
+    if (isTelegramConfigured()) {
+      let tgText = '<b>🏆 Ganadores de la Semana</b>\n\n';
+      for (const w of winners) {
+        tgText += `${w.roleName}: <b>${w.name}</b> — ${w.value}\n`;
+      }
+      await sendTelegramRanking(tgText);
+    }
+
+    // Post to ranking channel
   const channelCfg = await prisma.botConfig.findUnique({
     where: { key: `channel_ranking_${guildId}` },
   });

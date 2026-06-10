@@ -11,6 +11,7 @@ import { startBackupTask, stopBackupTask } from './tasks/backup-database';
 import { startStatsRanking, stopStatsRanking } from './tasks/stats-ranking';
 import { startWeeklyWinners, stopWeeklyWinners } from './tasks/weekly-winners';
 import { startMonthlyWinners, stopMonthlyWinners } from './tasks/monthly-winners';
+import { initTelegram } from './tasks/telegram-init';
 import { handleInteraction } from './events/interactionCreate';
 import { crGet } from './api/client';
 
@@ -58,6 +59,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   startStatsRanking(client);
   startWeeklyWinners(client);
   startMonthlyWinners(client);
+  initTelegram(client);
 });
 
 client.on(Events.GuildCreate, (guild) => {

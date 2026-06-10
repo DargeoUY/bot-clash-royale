@@ -133,6 +133,34 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
     return;
   }
 
+  if (subcommand === 'telegram-token') {
+    const token = interaction.options.getString('token', true);
+    await prisma.botConfig.upsert({
+      where: { key: `telegram_token_${interaction.guildId}` },
+      update: { value: token },
+      create: { key: `telegram_token_${interaction.guildId}`, value: token },
+    });
+    await interaction.reply({
+      embeds: [createEmbed('Configuración', 'Token de Telegram configurado.')],
+      ephemeral: true,
+    });
+    return;
+  }
+
+  if (subcommand === 'telegram-chat') {
+    const chat = interaction.options.getString('chat_id', true);
+    await prisma.botConfig.upsert({
+      where: { key: `telegram_chat_${interaction.guildId}` },
+      update: { value: chat },
+      create: { key: `telegram_chat_${interaction.guildId}`, value: chat },
+    });
+    await interaction.reply({
+      embeds: [createEmbed('Configuración', 'Chat ID de Telegram configurado.')],
+      ephemeral: true,
+    });
+    return;
+  }
+
   await interaction.reply({
     embeds: [errorEmbed('Subcomando', 'Subcomando no reconocido.')],
     ephemeral: true,
@@ -214,6 +242,22 @@ export const botConfig: BotCommand = {
         .setDescription('Días para considerar a un miembro inactivo')
         .addIntegerOption((opt) =>
           opt.setName('dias').setDescription('Cantidad de días').setRequired(true).setMinValue(1),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('telegram-token')
+        .setDescription('Configurar token del bot de Telegram')
+        .addStringOption((opt) =>
+          opt.setName('token').setDescription('Token de @BotFather').setRequired(true),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('telegram-chat')
+        .setDescription('Configurar chat ID de Telegram')
+        .addStringOption((opt) =>
+          opt.setName('chat_id').setDescription('ID del grupo o canal').setRequired(true),
         ),
     ),
   execute,
