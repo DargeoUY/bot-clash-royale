@@ -10,6 +10,7 @@ import { startRoleUpdater, stopRoleUpdater } from './tasks/update-roles';
 import { startBackupTask, stopBackupTask } from './tasks/backup-database';
 import { startStatsRanking, stopStatsRanking } from './tasks/stats-ranking';
 import { startWeeklyWinners, stopWeeklyWinners } from './tasks/weekly-winners';
+import { startMonthlyWinners, stopMonthlyWinners } from './tasks/monthly-winners';
 import { handleInteraction } from './events/interactionCreate';
 import { crGet } from './api/client';
 
@@ -56,6 +57,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   startBackupTask();
   startStatsRanking(client);
   startWeeklyWinners(client);
+  startMonthlyWinners(client);
 });
 
 client.on(Events.GuildCreate, (guild) => {
@@ -92,6 +94,7 @@ function shutdown(): void {
   stopBackupTask();
   stopStatsRanking();
   stopWeeklyWinners();
+  stopMonthlyWinners();
   client.destroy();
   healthServer.close();
   process.exit(0);

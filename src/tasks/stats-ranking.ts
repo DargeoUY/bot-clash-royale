@@ -6,6 +6,7 @@ import { getPlayerInfo } from '../api/player';
 import { getCurrentRiverRace } from '../api/clan';
 import { getAllClanConfigs } from '../utils/guild';
 import { addToWeeklyAccumulator } from './weekly-winners';
+import { addToMonthlyAccumulator } from './monthly-winners';
 import { EMBED_COLOR } from '../utils/embeds';
 import logger from '../config/logger';
 
@@ -164,6 +165,15 @@ export async function publishStatsRanking(
   }));
   await addToWeeklyAccumulator(clanTag, weeklyEntries);
 
+  // Add to monthly accumulator (copas + fame)
+  const monthlyEntries = deltas.map((d) => ({
+    tag: d.tag,
+    name: d.name,
+    trophies: d.trophies,
+    fame: warStats.find((w) => w.tag === d.tag)?.fame || 0,
+  }));
+  await addToMonthlyAccumulator(clanTag, monthlyEntries);
+
   // Rankings (daily where possible, otherwise lifetime)
   const byDailyWR = [...deltas]
     .filter((d) => d.wins + d.losses > 0)
@@ -260,45 +270,6 @@ export async function publishStatsRanking(
           { name: '\u200b', value: cols.right, inline: true },
         );
       await channel.send({ embeds: [don] });
-    }
-
-    // ── 3. Copas ──
-    if (byTrophies.length > 0) {
-      const tropLines = byTrophies.map((d, i) => {
-        const diff = d.trophies >= 0 ? `+${d.trophies}` : `${d.trophies}`;
-        return `**${medal(i)}** **${d.name}**\n᛫ ${diff} copas`;
-      });
-      const cols = formatTwoColumns(tropLines, 10);
-      const trop = new EmbedBuilder()
-        .setTitle('🏆 Mayor Cantidad de Copas')
-        .setColor(0xFFD700)
-        .addFields(
-          { name: '\u200b', value: cols.left, inline: true },
-          { name: '\u200b', value: cols.right, inline: true },
-        );
-      await channel.send({ embeds: [trop] });
-    }
-
-    // ── 4. Guerra de Clanes ──
-    if (warStats.length > 0) {
-      const warLines = byFame.map((p, i) =>
-        `**${medal(i)}** **${p.name}**\n᛫ ${p.fame} fama ⚡ ${p.decksUsed} decks`
-      );
-      const cols = formatTwoColumns(warLines, 10);
-      const war = new EmbedBuilder()
-        .setTitle(`⚔️ Guerra de Clanes (${totalFame} fama)`)
-        .setColor(0x9B59B6)
-        .addFields(
-          { name: '\u200b', value: cols.left, inline: true },
-          { name: '\u200b', value: cols.right, inline: true },
-        );
-      await channel.send({ embeds: [war] });
-    } else {
-      const war = new EmbedBuilder()
-        .setTitle('⚔️ Guerra de Clanes')
-        .setColor(0x9B59B6)
-        .setDescription('Sin guerra activa.');
-      await channel.send({ embeds: [war] });
     }
 
     logger.info(`Stats ranking published to ${channel.name} (${current.length} players)`);
