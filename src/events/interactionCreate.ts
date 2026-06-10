@@ -3,17 +3,46 @@ import logger from '../config/logger';
 import { commands } from '../commands';
 import { errorEmbed, isAdmin, EMBED_COLOR } from '../utils/embeds';
 import prisma from '../database/prisma';
+import { getClanMembers } from '../api/clan';
+import { getGuildClanTag } from '../utils/guild';
 
 const cooldowns = new Map<string, number>();
 
 async function handleModal(interaction: ModalSubmitInteraction): Promise<void> {
   if (interaction.customId === 'modal_whatsapp') {
-    const name = interaction.fields.getTextInputValue('whatsapp_name');
+    const name = interaction.fields.getTextInputValue('whatsapp_name').trim().toLowerCase();
     const phone = interaction.fields.getTextInputValue('whatsapp_phone');
     const discordId = interaction.user.id;
+    const guildId = interaction.guildId;
 
     try {
-      // Buscar si ya existe un player con este discordId
+      // Validar que el nombre coincide con un miembro del clan
+      let matched = false;
+      if (guildId) {
+        try {
+          const clanTag = await getGuildClanTag(guildId);
+          const members = await getClanMembers(clanTag);
+          matched = members.some((m) => m.name.toLowerCase().trim() === name);
+        } catch { /* si la API falla, dejamos matched=false */ }
+      }
+
+      if (!matched) {
+        await interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle('❌ No verificado')
+              .setDescription(
+                `El nombre **${interaction.fields.getTextInputValue('whatsapp_name')}** no coincide con ningún miembro del clan.\n\n` +
+                `Verificá que sea exactamente igual a tu nombre en Clash Royale.`
+              )
+              .setColor(0xE74C3C),
+          ],
+          ephemeral: true,
+        });
+        return;
+      }
+
+      // Guardar en DB
       const existing = await prisma.player.findFirst({
         where: { discordId },
         orderBy: { updatedAt: 'desc' },
@@ -22,14 +51,13 @@ async function handleModal(interaction: ModalSubmitInteraction): Promise<void> {
       if (existing) {
         await prisma.player.update({
           where: { id: existing.id },
-          data: { name, phone },
+          data: { name: interaction.fields.getTextInputValue('whatsapp_name'), phone },
         });
       } else {
-        // Crear uno nuevo sin tag (no vinculado a CR)
         await prisma.player.create({
           data: {
             tag: `discord_${discordId}`,
-            name,
+            name: interaction.fields.getTextInputValue('whatsapp_name'),
             discordId,
             phone,
             status: 'active',
@@ -37,20 +65,33 @@ async function handleModal(interaction: ModalSubmitInteraction): Promise<void> {
         });
       }
 
+      // Obtener el link de WhatsApp
+      let link = 'No configurado. Un líder debe usar /config link-whatsapp.';
+      if (guildId) {
+        const cfg = await prisma.botConfig.findUnique({
+          where: { key: `link_whatsapp_${guildId}` },
+        });
+        if (cfg) link = cfg.value;
+      }
+
       await interaction.reply({
         embeds: [
           new EmbedBuilder()
-            .setTitle('✅ Registro exitoso')
-            .setDescription(`**${name}** — ${phone}\nTus datos se guardaron correctamente.`)
+            .setTitle('✅ Verificado — Grupo de WhatsApp')
+            .setDescription(
+              `**${interaction.fields.getTextInputValue('whatsapp_name')}**, estos son tus datos:\n\n` +
+              `📱 **WhatsApp:** ${phone}\n` +
+              `🔗 **Grupo:** ${link}`
+            )
             .setColor(EMBED_COLOR),
         ],
         ephemeral: true,
       });
-      logger.info(`WhatsApp registered: ${name} (${phone}) -> ${discordId}`);
+      logger.info(`WhatsApp verified: ${name} (${phone}) -> ${discordId}`);
     } catch (err) {
       logger.error(`Modal whatsapp error: ${(err as Error).message}`);
       await interaction.reply({
-        embeds: [errorEmbed('Error', 'No se pudo guardar. Intentá de nuevo.')],
+        embeds: [errorEmbed('Error', 'No se pudo procesar. Intentá de nuevo.')],
         ephemeral: true,
       });
     }
