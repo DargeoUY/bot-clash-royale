@@ -2,6 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits }
 import { BotCommand } from '../types';
 import { errorEmbed, createEmbed } from '../utils/embeds';
 import prisma from '../database/prisma';
+import { loadTelegramConfig } from '../services/telegram.service';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
@@ -140,6 +141,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
       update: { value: token },
       create: { key: `telegram_token_${interaction.guildId}`, value: token },
     });
+    await loadTelegramConfig(interaction.guildId!);
     await interaction.reply({
       embeds: [createEmbed('Configuración', 'Token de Telegram configurado.')],
       ephemeral: true,
@@ -154,6 +156,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
       update: { value: chat },
       create: { key: `telegram_chat_${interaction.guildId}`, value: chat },
     });
+    await loadTelegramConfig(interaction.guildId!);
     await interaction.reply({
       embeds: [createEmbed('Configuración', 'Chat ID de Telegram configurado.')],
       ephemeral: true,

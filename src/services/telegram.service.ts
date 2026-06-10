@@ -1,4 +1,5 @@
 import logger from '../config/logger';
+import prisma from '../database/prisma';
 
 let botToken: string | null = null;
 let chatId: string | null = null;
@@ -7,6 +8,19 @@ export function configureTelegram(token: string, chat: string): void {
   botToken = token;
   chatId = chat;
   logger.info('Telegram configured');
+}
+
+export async function loadTelegramConfig(guildId: string): Promise<void> {
+  const tokenCfg = await prisma.botConfig.findUnique({
+    where: { key: `telegram_token_${guildId}` },
+  });
+  const chatCfg = await prisma.botConfig.findUnique({
+    where: { key: `telegram_chat_${guildId}` },
+  });
+  if (tokenCfg && chatCfg) {
+    configureTelegram(tokenCfg.value, chatCfg.value);
+    logger.info('Telegram config loaded from DB');
+  }
 }
 
 export function isTelegramConfigured(): boolean {
