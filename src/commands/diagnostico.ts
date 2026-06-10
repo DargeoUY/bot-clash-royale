@@ -4,6 +4,7 @@ import { getClanInfo, getClanMembers, getCurrentRiverRace } from '../api/clan';
 import { getPlayerInfo } from '../api/player';
 import { CRApiError } from '../api/client';
 import prisma from '../database/prisma';
+import { isTelegramConfigured, sendTelegramMessage } from '../services/telegram.service';
 import { EMBED_COLOR } from '../utils/embeds';
 
 interface TestResult {
@@ -65,6 +66,13 @@ export async function executeDiagnostico(interaction: ChatInputCommandInteractio
     const c = await prisma.clan.count();
     const p = await prisma.player.count();
     return `${c} clanes, ${p} jugadores`;
+  }));
+
+  // ── Telegram ──
+  results.push(await runTest('Telegram', async () => {
+    if (!isTelegramConfigured()) return 'No configurado';
+    const ok = await sendTelegramMessage('🧪 Test de conexión desde Asistente Royale');
+    return ok ? 'Mensaje enviado OK' : 'Falló el envío';
   }));
 
   // ── Build report ──
