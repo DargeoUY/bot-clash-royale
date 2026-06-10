@@ -1,9 +1,25 @@
+import { Client, TextChannel, EmbedBuilder, ChannelType } from 'discord.js';
 import prisma from '../database/prisma';
 import { getClanInfo, getClanMembers, getCurrentRiverRace } from '../api/clan';
 import { CRApiError } from '../api/client';
+import { detectMemberChanges } from './member-tracking.service';
+import { EMBED_COLOR } from '../utils/embeds';
 import logger from '../config/logger';
 
-export async function syncClanData(clanTag: string): Promise<void> {
+function parseSafeDate(value: string | undefined | null): Date | null {
+  if (!value) return null;
+  try {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+}
+
+export async function syncClanData(
+  clanTag: string,
+  client?: Client,
+): Promise<{ memberCount: number; changes: { joined: number; left: number; rejoined: number } }> {
   try {
     const clanInfo = await getClanInfo(clanTag);
 
@@ -28,6 +44,8 @@ export async function syncClanData(clanTag: string): Promise<void> {
     const members = await getClanMembers(clanTag);
 
     for (const member of members) {
+      const lastSeen = parseSafeDate(member.lastSeen);
+
       await prisma.player.upsert({
         where: { tag: member.tag },
         update: {
@@ -36,7 +54,8 @@ export async function syncClanData(clanTag: string): Promise<void> {
           expLevel: member.expLevel,
           trophies: member.trophies,
           clanTag,
-          lastActiveAt: new Date(member.lastSeen),
+          status: 'active',
+          ...(lastSeen ? { lastActiveAt: lastSeen } : {}),
         },
         create: {
           tag: member.tag,
@@ -45,13 +64,33 @@ export async function syncClanData(clanTag: string): Promise<void> {
           expLevel: member.expLevel,
           trophies: member.trophies,
           clanTag,
-          lastActiveAt: new Date(member.lastSeen),
+          status: 'active',
+          ...(lastSeen ? { lastActiveAt: lastSeen } : {}),
         },
       });
     }
 
     logger.info(`Clan members synced: ${members.length} players`);
 
+    const changes = await detectMemberChanges(clanTag, members);
+
+    if (client) {
+      const guild = client.guilds.cache.first();
+      if (guild) {
+        await updateCategoryName(guild, members.length);
+        await publishMemberChanges(client, guild.id, changes);
+        await publishFirstSyncTest(client, guild.id);
+      }
+    }
+
+    return {
+      memberCount: members.length,
+      changes: {
+        joined: changes.joined.length,
+        left: changes.left.length,
+        rejoined: changes.rejoined.length,
+      },
+    };
   } catch (error) {
     if (error instanceof CRApiError) {
       logger.error(`CR API error syncing clan ${clanTag}: [${error.status}] ${error.message}`);
@@ -60,6 +99,110 @@ export async function syncClanData(clanTag: string): Promise<void> {
     }
     throw error;
   }
+}
+
+async function updateCategoryName(guild: import('discord.js').Guild, memberCount: number): Promise<void> {
+  try {
+    const category = guild.channels.cache.find(
+      (c) => c.type === ChannelType.GuildCategory && c.name.startsWith('🏰'),
+    );
+    if (category) {
+      const newName = `🏰 CLASH ROYALE · ${memberCount}/50`;
+      if (category.name !== newName) {
+        await category.setName(newName);
+        logger.debug(`Category renamed to: ${newName}`);
+      }
+    }
+  } catch (err) {
+    logger.warn(`Could not update category name: ${(err as Error).message}`);
+  }
+}
+
+async function publishMemberChanges(
+  client: Client,
+  guildId: string,
+  changes: { joined: { tag: string; name: string; role: string }[]; left: { tag: string; name: string }[]; rejoined: { tag: string; name: string }[] },
+): Promise<void> {
+  if (changes.joined.length + changes.left.length + changes.rejoined.length === 0) return;
+
+  const channelKey = `channel_members_${guildId}`;
+  let cfg = await prisma.botConfig.findUnique({ where: { key: channelKey } });
+
+  if (!cfg) {
+    cfg = await prisma.botConfig.findUnique({ where: { key: `channel_alerts_${guildId}` } });
+  }
+  if (!cfg) return;
+
+  try {
+    const channel = (await client.channels.fetch(cfg.value)) as TextChannel;
+    if (!channel) return;
+
+    const embed = new EmbedBuilder()
+      .setTitle('📊 Cambios en el Clan')
+      .setColor(EMBED_COLOR)
+      .setTimestamp();
+
+    const lines: string[] = [];
+    for (const j of changes.joined) {
+      lines.push(`🟢 **${j.name}** se unió al clan (${j.role})`);
+    }
+    for (const r of changes.rejoined) {
+      lines.push(`🔵 **${r.name}** volvió al clan`);
+    }
+    for (const l of changes.left) {
+      lines.push(`🔴 **${l.name}** salió del clan`);
+    }
+
+    embed.setDescription(lines.join('\n') || 'Sin cambios');
+
+    if (changes.joined.length > 0 || changes.rejoined.length > 0) {
+      embed.setFooter({ text: `+${changes.joined.length + changes.rejoined.length} ingresos | -${changes.left.length} bajas` });
+    }
+
+    await channel.send({ embeds: [embed] });
+  } catch (err) {
+    logger.warn(`Could not publish member changes: ${(err as Error).message}`);
+  }
+}
+
+async function publishFirstSyncTest(client: Client, guildId: string): Promise<void> {
+  const alreadyDone = await prisma.botConfig.findUnique({
+    where: { key: `first_sync_done_${guildId}` },
+  });
+  if (alreadyDone) return;
+
+  const channels = ['war', 'alerts', 'ranking'];
+  for (const ch of channels) {
+    const key = `channel_${ch}_${guildId}`;
+    const cfg = await prisma.botConfig.findUnique({ where: { key } });
+    if (!cfg) continue;
+
+    try {
+      const channel = (await client.channels.fetch(cfg.value)) as TextChannel;
+      if (!channel) continue;
+
+      const labels: Record<string, string> = {
+        war: '⚔️ Reportes de guerra',
+        alerts: '🚨 Alertas de inactividad',
+        ranking: '🏆 Ranking y premios',
+      };
+
+      await channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle(`✅ ${labels[ch] || ch}`)
+            .setDescription(`Este canal está configurado correctamente.\nLos reportes automáticos se publicarán acá.`)
+            .setColor(EMBED_COLOR),
+        ],
+      });
+    } catch {
+      // skip
+    }
+  }
+
+  await prisma.botConfig.create({
+    data: { key: `first_sync_done_${guildId}`, value: '1' },
+  });
 }
 
 export async function syncCurrentWar(clanTag: string): Promise<void> {

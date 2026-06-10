@@ -10,4 +10,4 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-CMD ["node", "dist/bot.js"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss && node dist/bot.js"]

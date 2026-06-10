@@ -11,6 +11,7 @@ interface SetupResult {
     war: string;
     alerts: string;
     ranking: string;
+    members: string;
   };
   roles: {
     campeon: string;
@@ -31,6 +32,7 @@ const CHANNEL_NAMES = {
   war: '⚔️・guerra-reportes',
   alerts: '🚨・alertas-inactividad',
   ranking: '🏆・ranking-premios',
+  members: '👥・cambios-miembros',
 };
 const ROLE_DEFS: { key: string; name: string; color: string }[] = [
   { key: 'campeon', name: '🏆 Campeón del Mes', color: '#FFD700' },
@@ -41,29 +43,6 @@ const ROLE_DEFS: { key: string; name: string; color: string }[] = [
   { key: 'inactivo', name: '⛔ Inactivo', color: '#E74C3C' },
   { key: 'recluta', name: '🆕 Recluta', color: '#3498DB' },
 ];
-
-async function findOrCreateCategory(guild: Guild): Promise<string> {
-  const existing = guild.channels.cache.find(
-    (c) => c.type === ChannelType.GuildCategory && c.name === CATEGORY_NAME,
-  );
-  if (existing) {
-    logger.debug(`Category exists: ${CATEGORY_NAME}`);
-    return existing.id;
-  }
-
-  const created = await guild.channels.create({
-    name: CATEGORY_NAME,
-    type: ChannelType.GuildCategory,
-    permissionOverwrites: [
-      {
-        id: guild.roles.everyone.id,
-        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory],
-      },
-    ],
-  });
-  logger.info(`Category created: ${CATEGORY_NAME}`);
-  return created.id;
-}
 
 async function findOrCreateChannel(
   guild: Guild,
@@ -146,6 +125,7 @@ export async function autoCreateSetup(guild: Guild, clanTag: string): Promise<Se
   const war = await findOrCreateChannel(guild, CHANNEL_NAMES.war, categoryId);
   const alerts = await findOrCreateChannel(guild, CHANNEL_NAMES.alerts, categoryId);
   const ranking = await findOrCreateChannel(guild, CHANNEL_NAMES.ranking, categoryId);
+  const members = await findOrCreateChannel(guild, CHANNEL_NAMES.members, categoryId);
 
   // === Roles ===
   const roles: Record<string, string> = {};
@@ -162,6 +142,7 @@ export async function autoCreateSetup(guild: Guild, clanTag: string): Promise<Se
     { key: `channel_war_${guildPrefix}`, value: war.id },
     { key: `channel_alerts_${guildPrefix}`, value: alerts.id },
     { key: `channel_ranking_${guildPrefix}`, value: ranking.id },
+    { key: `channel_members_${guildPrefix}`, value: members.id },
     { key: `role_campeon_${guildPrefix}`, value: roles.campeon },
     { key: `role_guerrero_${guildPrefix}`, value: roles.guerrero },
     { key: `role_donador_${guildPrefix}`, value: roles.donador },
@@ -215,6 +196,7 @@ export async function autoCreateSetup(guild: Guild, clanTag: string): Promise<Se
       war: war.id,
       alerts: alerts.id,
       ranking: ranking.id,
+      members: members.id,
     },
     roles: {
       campeon: roles.campeon,

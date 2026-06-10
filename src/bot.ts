@@ -8,6 +8,7 @@ import { startReportTasks, stopReportTasks } from './tasks/weekly-report';
 import { startMonthlyTasks, stopMonthlyTasks } from './tasks/monthly-report';
 import { startRoleUpdater, stopRoleUpdater } from './tasks/update-roles';
 import { startBackupTask, stopBackupTask } from './tasks/backup-database';
+import { startIPChecker, stopIPChecker } from './tasks/check-ip';
 import { handleInteraction } from './events/interactionCreate';
 
 const client = new Client({
@@ -28,6 +29,7 @@ client.once(Events.ClientReady, (readyClient) => {
   startMonthlyTasks(client);
   startRoleUpdater(client);
   startBackupTask();
+  startIPChecker();
 });
 
 client.on(Events.GuildCreate, (guild) => {
@@ -62,6 +64,7 @@ function shutdown(): void {
   stopMonthlyTasks();
   stopRoleUpdater();
   stopBackupTask();
+  stopIPChecker();
   client.destroy();
   healthServer.close();
   process.exit(0);

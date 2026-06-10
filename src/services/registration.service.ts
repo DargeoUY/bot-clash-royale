@@ -1,3 +1,4 @@
+import { Guild } from 'discord.js';
 import prisma from '../database/prisma';
 import { getPlayerInfo } from '../api/player';
 import { CRApiError } from '../api/client';
@@ -18,6 +19,7 @@ export async function registerPlayer(
   playerTag: string,
   discordId: string,
   clanTag: string,
+  guild?: Guild,
 ): Promise<RegistrationResult> {
   try {
     const playerInfo = await getPlayerInfo(playerTag);
@@ -62,6 +64,25 @@ export async function registerPlayer(
     });
 
     logger.info(`Player registered: ${player.name} (${player.tag}) -> Discord ${discordId}`);
+
+    if (guild) {
+      try {
+        const reclutaKey = `role_recluta_${guild.id}`;
+        const cfg = await prisma.botConfig.findUnique({ where: { key: reclutaKey } });
+        if (cfg) {
+          const member = await guild.members.fetch(discordId).catch(() => null);
+          if (member) {
+            const role = guild.roles.cache.get(cfg.value);
+            if (role && !member.roles.cache.has(role.id)) {
+              await member.roles.add(role);
+              logger.info(`Rol Recluta asignado a ${player.name}`);
+            }
+          }
+        }
+      } catch (err) {
+        logger.warn(`No se pudo asignar rol Recluta a ${player.name}: ${(err as Error).message}`);
+      }
+    }
 
     return {
       success: true,

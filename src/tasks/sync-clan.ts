@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { config } from '../config';
+import { client } from '../bot';
 import { syncClanData, syncCurrentWar } from '../services/clan-war.service';
 import logger from '../config/logger';
 
@@ -16,8 +17,8 @@ export function startSyncTasks(): void {
   clanSyncTask = cron.schedule('0 * * * *', async () => {
     logger.debug('Running clan sync task...');
     try {
-      await syncClanData(clanTag);
-      logger.debug('Clan sync completed');
+      const result = await syncClanData(clanTag, client);
+      logger.info(`Clan sync done: ${result.memberCount} members, +${result.changes.joined}/-${result.changes.left}`);
     } catch (error) {
       logger.error('Clan sync task failed:', error);
     }

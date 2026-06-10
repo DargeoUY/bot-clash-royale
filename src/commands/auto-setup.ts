@@ -32,6 +32,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
             `<#${result.channels.war}> — Reportes de guerra`,
             `<#${result.channels.alerts}> — Alertas de inactividad`,
             `<#${result.channels.ranking}> — Ranking y premios`,
+            `<#${result.channels.members}> — Cambios de miembros`,
           ].join('\n'),
         },
         {

@@ -82,7 +82,7 @@ async function executeSincronizar(interaction: ChatInputCommandInteraction): Pro
   await interaction.deferReply();
 
   try {
-    await syncClanData(config.CLAN_TAG);
+    await syncClanData(config.CLAN_TAG, interaction.client);
     await interaction.editReply({
       embeds: [
         new EmbedBuilder()

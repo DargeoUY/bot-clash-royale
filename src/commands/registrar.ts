@@ -19,7 +19,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
   }
 
   const playerTag = formatPlayerTag(rawTag);
-  const result = await registerPlayer(playerTag, discordId, config.CLAN_TAG);
+  const result = await registerPlayer(playerTag, discordId, config.CLAN_TAG, interaction.guild || undefined);
 
   if (!result.success) {
     await interaction.editReply({

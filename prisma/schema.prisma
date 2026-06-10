@@ -34,7 +34,9 @@ model Player {
   clanTag       String?
   discordId     String?
   isRegistered  Boolean   @default(false)
+  status        String    @default("active") // active, left
   lastActiveAt  DateTime?
+  leftAt        DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt()
 
@@ -45,6 +47,7 @@ model Player {
   pointHistory    PointHistory[]
   vacations       Vacation[]
   donations       DonationLog[]
+  clanHistory     ClanHistory[]
 }
 
 model WarLog {
@@ -164,4 +167,15 @@ model BotConfig {
   updatedAt DateTime @updatedAt()
 
   clan      Clan?    @relation(fields: [clanTag], references: [tag])
+}
+
+model ClanHistory {
+  id        Int      @id @default(autoincrement())
+  playerTag String
+  clanTag   String
+  event     String   // joined, left
+  playerName String?
+  createdAt DateTime @default(now())
+
+  player    Player   @relation(fields: [playerTag], references: [tag])
 }
