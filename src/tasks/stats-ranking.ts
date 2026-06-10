@@ -5,6 +5,7 @@ import { getClanMembers } from '../api/clan';
 import { getPlayerInfo } from '../api/player';
 import { getCurrentRiverRace } from '../api/clan';
 import { getAllClanConfigs } from '../utils/guild';
+import { addToWeeklyAccumulator } from './weekly-winners';
 import { EMBED_COLOR } from '../utils/embeds';
 import logger from '../config/logger';
 
@@ -139,6 +140,18 @@ export async function publishStatsRanking(
 
   // Save current as baseline for next day
   await saveSnapshot(clanTag, current);
+
+  // Add to weekly accumulator
+  const weeklyEntries = deltas.map((d) => ({
+    tag: d.tag,
+    name: d.name,
+    wins: d.wins,
+    losses: d.losses,
+    donations: d.donations,
+    trophies: d.trophies,
+    fame: warStats.find((w) => w.tag === d.tag)?.fame || 0,
+  }));
+  await addToWeeklyAccumulator(clanTag, weeklyEntries);
 
   // Rankings (daily where possible, otherwise lifetime)
   const byDailyWR = [...deltas]

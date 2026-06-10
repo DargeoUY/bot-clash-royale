@@ -34,14 +34,14 @@ const CHANNEL_NAMES = {
   ranking: '🏆・ranking-premios',
   members: '👥・cambios-miembros',
 };
-const ROLE_DEFS: { key: string; name: string; color: string }[] = [
-  { key: 'campeon', name: '🏆 Campeón del Mes', color: '#FFD700' },
-  { key: 'guerrero', name: '⚔️ Guerrero Élite', color: '#9B59B6' },
-  { key: 'donador', name: '💎 Donador Legendario', color: '#FF69B4' },
-  { key: 'activo', name: '✅ Activo', color: '#2ECC71' },
-  { key: 'ausente', name: '🏖️ Ausente', color: '#F39C12' },
-  { key: 'inactivo', name: '⛔ Inactivo', color: '#E74C3C' },
-  { key: 'recluta', name: '🆕 Recluta', color: '#3498DB' },
+const ROLE_DEFS: { key: string; name: string; color: string; hoist: boolean }[] = [
+  { key: 'campeon', name: '🏆 Campeón del Mes', color: '#FFD700', hoist: true },
+  { key: 'guerrero', name: '⚔️ Guerrero Élite', color: '#9B59B6', hoist: true },
+  { key: 'donador', name: '💎 Donador Legendario', color: '#FF69B4', hoist: true },
+  { key: 'activo', name: '✅ Activo', color: '#2ECC71', hoist: false },
+  { key: 'ausente', name: '🏖️ Ausente', color: '#F39C12', hoist: false },
+  { key: 'inactivo', name: '⛔ Inactivo', color: '#E74C3C', hoist: false },
+  { key: 'recluta', name: '🆕 Recluta', color: '#3498DB', hoist: false },
 ];
 
 async function findOrCreateChannel(
@@ -79,15 +79,18 @@ async function findOrCreateChannel(
   return { id: created.id, channel: created as TextChannel };
 }
 
-async function findOrCreateRole(guild: Guild, name: string, color: string): Promise<{ id: string; created: boolean }> {
+async function findOrCreateRole(guild: Guild, name: string, color: string, hoist: boolean): Promise<{ id: string; created: boolean }> {
   const existing = guild.roles.cache.find((r) => r.name === name);
   if (existing) {
+    if (existing.hoist !== hoist) {
+      await existing.setHoist(hoist);
+    }
     logger.debug(`Role exists: ${name}`);
     return { id: existing.id, created: false };
   }
 
-  const created = await guild.roles.create({ name, color: parseInt(color.replace('#', ''), 16) });
-  logger.info(`Role created: ${name}`);
+  const created = await guild.roles.create({ name, color: parseInt(color.replace('#', ''), 16), hoist });
+  logger.info(`Role created: ${name} (hoisted: ${hoist})`);
   return { id: created.id, created: true };
 }
 
@@ -130,7 +133,7 @@ export async function autoCreateSetup(guild: Guild, clanTag: string): Promise<Se
   // === Roles ===
   const roles: Record<string, string> = {};
   for (const r of ROLE_DEFS) {
-    const result = await findOrCreateRole(guild, r.name, r.color);
+    const result = await findOrCreateRole(guild, r.name, r.color, r.hoist);
     roles[r.key] = result.id;
     if (result.created) createdRoles++;
   }
