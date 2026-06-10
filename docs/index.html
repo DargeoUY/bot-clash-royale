@@ -208,6 +208,10 @@
       <p>Verifica que el jugador esté en el clan antes de compartir el link del grupo. Por servidor.</p>
     </div>
     <div class="feature">
+      <h3>🏆 Ganadores Semanales</h3>
+      <p>Cada lunes se anuncian los ganadores de cada categoría. Roles automáticos por 1 semana con insignia separada.</p>
+    </div>
+    <div class="feature">
       <h3>⭐ Sistema de Puntos</h3>
       <p>Puntos por guerra, actividad, donaciones. Bonus y penalizaciones manuales. Ranking semanal/mensual.</p>
     </div>
@@ -265,6 +269,11 @@
       <div class="meta">Sincroniza datos de River Race (fama, decks, participantes).</div>
     </div>
     <div class="task">
+      <div class="freq">Cada lunes — 10 AM UTC</div>
+      <h4>🏆 Ganadores Semanales</h4>
+      <div class="meta">Anuncia ganadores de la semana, asigna roles con insignia. Quita roles de la semana anterior.</div>
+    </div>
+    <div class="task">
       <div class="freq">Cada 24h — 8 AM UTC</div>
       <h4>Ranking de Stats</h4>
       <div class="meta">Publica ranking diario en canal <span class="highlight">🏆・ranking-premios</span>.</div>
@@ -314,9 +323,10 @@
 
   <table style="margin-top: 30px;">
     <tr><th>Rol</th><th>Color</th><th>Asignado a</th></tr>
-    <tr><td>🏆 Campeón del Mes</td><td style="color:#FFD700">Dorado</td><td>Top 1 del ranking mensual</td></tr>
-    <tr><td>⚔️ Guerrero Élite</td><td style="color:#9B59B6">Púrpura</td><td>Top guerra semanal</td></tr>
-    <tr><td>💎 Donador Legendario</td><td style="color:#FF69B4">Rosa</td><td>Top donador</td></tr>
+    <tr><td>🏆 Campeón del Mes</td><td style="color:#FFD700">Dorado</td><td>Top 1 V/D semanal</td></tr>
+    <tr><td>⚔️ Guerrero Élite</td><td style="color:#9B59B6">Púrpura</td><td>Top 1 Guerra semanal</td></tr>
+    <tr><td>💎 Donador Legendario</td><td style="color:#FF69B4">Rosa</td><td>Top 1 Donaciones</td></tr>
+    <tr><td>🏆 Rey de Copas</td><td style="color:#FFD700">Dorado</td><td>Top 1 Copas semanal</td></tr>
     <tr><td>✅ Activo</td><td style="color:#2ECC71">Verde</td><td>Miembros activos</td></tr>
     <tr><td>🏖️ Ausente</td><td style="color:#F39C12">Naranja</td><td>Modo vacaciones</td></tr>
     <tr><td>⛔ Inactivo</td><td style="color:#E74C3C">Rojo</td><td>Inactivo detectado</td></tr>
@@ -360,6 +370,23 @@
       ✅ Coincide → guarda datos + muestra el link del grupo.<br>
       ❌ No coincide → "No verificado, el nombre no está en el clan."
     </div>
+  </div>
+</section>
+
+<!-- ═══ WEEKLY WINNERS ═══ -->
+<section>
+  <h2>🏆 Ganadores Semanales</h2>
+  <p style="margin-bottom: 15px;">Cada <strong>lunes a las 10 AM UTC</strong> se calculan los ganadores acumulando los stats diarios de la semana:</p>
+  <table>
+    <tr><th>Categoría</th><th>Rol asignado</th><th>Métrica</th></tr>
+    <tr><td>⚔️ Victorias / Derrotas</td><td>🏆 Campeón del Mes</td><td>Mejor win rate semanal</td></tr>
+    <tr><td>💎 Donaciones de Cartas</td><td>💎 Donador Legendario</td><td>Más cartas donadas</td></tr>
+    <tr><td>🏆 Mayor Cantidad de Copas</td><td>🏆 Rey de Copas</td><td>Más copas ganadas</td></tr>
+    <tr><td>⚔️ Guerra de Clanes</td><td>⚔️ Guerrero Élite</td><td>Más fama acumulada</td></tr>
+  </table>
+  <div class="note">
+    🔝 Los roles son <strong>hoisted</strong>: aparecen separados del resto de miembros en la barra lateral.<br>
+    🔄 Se quitan automáticamente al ganador anterior y se asignan al nuevo cada lunes.
   </div>
 </section>
 
