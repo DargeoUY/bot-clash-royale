@@ -177,18 +177,30 @@ export async function publishStatsRanking(
     const channel = (await client.channels.fetch(cfg.value)) as TextChannel;
     if (!channel) return;
 
-    const label = isFirstDay ? '📊 Ranking del Clan (Totales — 1er día de tracking)' : '📊 Ranking del Clan — Diario';
-    const extra = isFirstDay ? '\n📌 Las estadísticas **diarias** aparecerán mañana.' : '';
+    const label = isFirstDay
+      ? '📊 Ranking del Clan — Día 1 (sin datos diarios aún)'
+      : '📊 Ranking del Clan — Diario';
 
     // ── Header ──
     const header = new EmbedBuilder()
       .setTitle(label)
       .setColor(EMBED_COLOR)
-      .setDescription(
-        `**${members.length}** jugadores | ✅ ${totalDailyW}V ❌ ${totalDailyL}D hoy | 💎 ${totalDonations.toLocaleString()} donaciones${extra}`
-      )
       .setFooter({ text: `Actualizado cada 24h | Errores: ${errors}` })
       .setTimestamp();
+
+    if (isFirstDay) {
+      header.setDescription(
+        `**${members.length}** jugadores sincronizados.\n\n` +
+        `📌 Hoy es el **primer día** de tracking. Se guardó la foto inicial.\n` +
+        `Mañana se mostrarán solo las partidas **de hoy** (delta diario).`
+      );
+      await channel.send({ embeds: [header] });
+      return;
+    }
+
+    header.setDescription(
+      `**${members.length}** jugadores | ✅ ${totalDailyW}V ❌ ${totalDailyL}D hoy | 💎 ${totalDonations.toLocaleString()} donaciones`
+    );
     await channel.send({ embeds: [header] });
 
     // ── 1. Victorias / Derrotas ──
