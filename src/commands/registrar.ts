@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import { BotCommand } from '../types';
-import { config } from '../config';
+import { getGuildClanTag } from '../utils/guild';
 import { registerPlayer } from '../services/registration.service';
 import { isValidPlayerTag, formatPlayerTag } from '../utils/validators';
 import { errorEmbed, EMBED_COLOR } from '../utils/embeds';
@@ -19,7 +19,8 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
   }
 
   const playerTag = formatPlayerTag(rawTag);
-  const result = await registerPlayer(playerTag, discordId, config.CLAN_TAG, interaction.guild || undefined);
+  const clanTag = await getGuildClanTag(interaction.guildId!);
+  const result = await registerPlayer(playerTag, discordId, clanTag, interaction.guild || undefined);
 
   if (!result.success) {
     await interaction.editReply({

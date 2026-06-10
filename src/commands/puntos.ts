@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import { BotCommand } from '../types';
+import { getGuildClanTag } from '../utils/guild';
 import { getPlayerPoints, getPointHistory, addPoints, getLeaderboard } from '../services/points.service';
-import { config } from '../config';
 import { isValidPlayerTag, formatPlayerTag } from '../utils/validators';
 import { errorEmbed, successEmbed, EMBED_COLOR } from '../utils/embeds';
 
@@ -115,7 +115,8 @@ async function ejecutarRanking(interaction: ChatInputCommandInteraction): Promis
   await interaction.deferReply();
 
   const periodo = (interaction.options.getString('periodo') || 'mensual') as 'semanal' | 'mensual' | 'general';
-  const leaderboard = await getLeaderboard(config.CLAN_TAG, periodo);
+  const clanTag = await getGuildClanTag(interaction.guildId!);
+  const leaderboard = await getLeaderboard(clanTag, periodo);
 
   const embed = new EmbedBuilder()
     .setTitle(`🏆 Ranking ${periodo === 'semanal' ? 'Semanal' : periodo === 'mensual' ? 'Mensual' : 'General'}`)

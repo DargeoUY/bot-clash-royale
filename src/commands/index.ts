@@ -4,6 +4,7 @@ import { clan } from './clan';
 import { perfil } from './perfil';
 import { ayuda } from './ayuda';
 import { guia } from './guia';
+import { setup } from './setup';
 import { autoSetup } from './auto-setup';
 import { botConfig } from './config';
 import { guerra } from './guerra';
@@ -19,6 +20,7 @@ export const commands = new Map<string, BotCommand>([
   ['perfil', perfil],
   ['ayuda', ayuda],
   ['guia', guia],
+  ['setup', setup],
   ['auto-setup', autoSetup],
   ['config', botConfig],
   ['guerra', guerra],

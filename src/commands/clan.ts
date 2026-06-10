@@ -4,7 +4,7 @@ import {
   EmbedBuilder,
 } from 'discord.js';
 import { BotCommand } from '../types';
-import { config } from '../config';
+import { getGuildClanTag, getGuildApiKey } from '../utils/guild';
 import { getClanInfo } from '../api/clan';
 import { CRApiError } from '../api/client';
 import { EMBED_COLOR, errorEmbed } from '../utils/embeds';
@@ -14,8 +14,11 @@ import { syncClanData } from '../services/clan-war.service';
 async function executeInfo(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply();
 
+  const clanTag = await getGuildClanTag(interaction.guildId!);
+  const apiKey = await getGuildApiKey(interaction.guildId!);
+
   try {
-    const clanInfo = await getClanInfo(config.CLAN_TAG);
+    const clanInfo = await getClanInfo(clanTag, apiKey);
 
     const embed = new EmbedBuilder()
       .setTitle(`⚔️ ${clanInfo.name}`)
@@ -52,7 +55,7 @@ async function executeNoRegistrados(interaction: ChatInputCommandInteraction): P
   await interaction.deferReply();
 
   try {
-    const unregistered = await getUnregisteredMembers(config.CLAN_TAG);
+    const unregistered = await getUnregisteredMembers(await getGuildClanTag(interaction.guildId!));
 
     const embed = new EmbedBuilder()
       .setTitle('👤 Miembros sin Discord')
@@ -82,7 +85,7 @@ async function executeSincronizar(interaction: ChatInputCommandInteraction): Pro
   await interaction.deferReply();
 
   try {
-    await syncClanData(config.CLAN_TAG, interaction.client);
+    await syncClanData(await getGuildClanTag(interaction.guildId!), interaction.client);
     await interaction.editReply({
       embeds: [
         new EmbedBuilder()

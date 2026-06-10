@@ -1,13 +1,13 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import { BotCommand } from '../types';
-import { config } from '../config';
+import { getGuildClanTag } from '../utils/guild';
 import { checkInactivity } from '../services/inactivity.service';
 import { EMBED_COLOR } from '../utils/embeds';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply();
 
-  const results = await checkInactivity(config.CLAN_TAG, interaction.guildId);
+  const results = await checkInactivity(await getGuildClanTag(interaction.guildId!), interaction.guildId);
 
   if (results.length === 0) {
     await interaction.editReply({
@@ -35,7 +35,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
     .join('\n');
 
   embed.setDescription(list);
-  embed.setFooter({ text: `Total: ${results.length} inactivos | Clan: ${config.CLAN_TAG}` });
+  embed.setFooter({ text: `Total: ${results.length} inactivos` });
 
   await interaction.editReply({ embeds: [embed] });
 }

@@ -1,15 +1,17 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, AttachmentBuilder } from 'discord.js';
 import { BotCommand } from '../types';
+import { getGuildClanTag } from '../utils/guild';
 import prisma from '../database/prisma';
-import { config } from '../config';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
 
   const formato = interaction.options.getString('formato') || 'csv';
 
+  const clanTag = await getGuildClanTag(interaction.guildId!);
+
   const players = await prisma.player.findMany({
-    where: { clanTag: config.CLAN_TAG },
+    where: { clanTag },
     include: { points: { orderBy: { totalPoints: 'desc' } } },
   });
 

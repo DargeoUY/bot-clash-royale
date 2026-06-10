@@ -1,48 +1,44 @@
 import cron from 'node-cron';
-import { config } from '../config';
 import { client } from '../bot';
 import { syncClanData, syncCurrentWar } from '../services/clan-war.service';
+import { getAllClanConfigs } from '../utils/guild';
 import logger from '../config/logger';
 
 let clanSyncTask: cron.ScheduledTask | null = null;
 let warSyncTask: cron.ScheduledTask | null = null;
 
-function formatTag(tag: string): string {
-  return tag.startsWith('#') ? tag : `#${tag}`;
-}
-
 export function startSyncTasks(): void {
-  const clanTag = formatTag(config.CLAN_TAG);
-
   clanSyncTask = cron.schedule('0 * * * *', async () => {
-    logger.debug('Running clan sync task...');
-    try {
-      const result = await syncClanData(clanTag, client);
-      logger.info(`Clan sync done: ${result.memberCount} members, +${result.changes.joined}/-${result.changes.left}`);
-    } catch (error) {
-      logger.error('Clan sync task failed:', error);
+    logger.debug('Running clan sync for all clans...');
+    const clans = await getAllClanConfigs();
+    for (const { clanTag } of clans) {
+      try {
+        const result = await syncClanData(clanTag, client);
+        logger.info(`Clan ${clanTag}: ${result.memberCount} members, +${result.changes.joined}/-${result.changes.left}`);
+      } catch (error) {
+        logger.error(`Clan sync failed for ${clanTag}:`, error);
+      }
     }
   });
 
   warSyncTask = cron.schedule('*/30 * * * *', async () => {
-    logger.debug('Running war sync task...');
-    try {
-      await syncCurrentWar(clanTag);
-      logger.debug('War sync completed');
-    } catch (error) {
-      logger.error('War sync task failed:', error);
+    logger.debug('Running war sync for all clans...');
+    const clans = await getAllClanConfigs();
+    for (const { clanTag } of clans) {
+      try {
+        await syncCurrentWar(clanTag);
+        logger.debug(`War sync done: ${clanTag}`);
+      } catch (error) {
+        logger.error(`War sync failed for ${clanTag}:`, error);
+      }
     }
   });
 
-  logger.info(`Sync tasks started: clan every 1h, war every 30min (clan: ${clanTag})`);
+  logger.info('Sync tasks started: clan every 1h, war every 30min (multi-clan)');
 }
 
 export function stopSyncTasks(): void {
-  if (clanSyncTask) {
-    clanSyncTask.stop();
-  }
-  if (warSyncTask) {
-    warSyncTask.stop();
-  }
+  if (clanSyncTask) clanSyncTask.stop();
+  if (warSyncTask) warSyncTask.stop();
   logger.info('Sync tasks stopped');
 }

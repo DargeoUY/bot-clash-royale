@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import { BotCommand } from '../types';
-import { config } from '../config';
+import { getGuildClanTag } from '../utils/guild';
 import { getCurrentRiverRace } from '../api/clan';
 import { getLeaderboard } from '../services/points.service';
 import { CRApiError } from '../api/client';
@@ -10,7 +10,8 @@ async function executeEstado(interaction: ChatInputCommandInteraction): Promise<
   await interaction.deferReply();
 
   try {
-    const race = await getCurrentRiverRace(config.CLAN_TAG);
+    const clanTag = await getGuildClanTag(interaction.guildId!);
+    const race = await getCurrentRiverRace(clanTag);
     const clan = race.clan;
 
     const embed = new EmbedBuilder()
@@ -49,7 +50,8 @@ async function executeEstado(interaction: ChatInputCommandInteraction): Promise<
 
 async function executeSemanal(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply();
-  const leaderboard = await getLeaderboard(config.CLAN_TAG, 'semanal');
+  const clanTag = await getGuildClanTag(interaction.guildId!);
+  const leaderboard = await getLeaderboard(clanTag, 'semanal');
 
   const embed = new EmbedBuilder()
     .setTitle('📊 Reporte Semanal de Guerra')
@@ -72,7 +74,8 @@ async function executeSemanal(interaction: ChatInputCommandInteraction): Promise
 
 async function executeMensual(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply();
-  const leaderboard = await getLeaderboard(config.CLAN_TAG, 'mensual');
+  const clanTag = await getGuildClanTag(interaction.guildId!);
+  const leaderboard = await getLeaderboard(clanTag, 'mensual');
 
   const embed = new EmbedBuilder()
     .setTitle('📊 Reporte Mensual de Guerra')
