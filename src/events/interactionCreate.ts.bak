@@ -5,11 +5,9 @@ import { errorEmbed, isAdmin, EMBED_COLOR } from '../utils/embeds';
 import prisma from '../database/prisma';
 import { getClanMembers } from '../api/clan';
 import { getGuildClanTag } from '../utils/guild';
-import { handleTorneoModal } from '../services/torneo.service';
+import { crGet } from '../api/client';
 
 const cooldowns = new Map<string, number>();
-
-// ── Modal Handlers ──
 
 async function handleModal(interaction: ModalSubmitInteraction): Promise<void> {
   // ── WhatsApp ──
@@ -165,4 +163,106 @@ export async function handleInteraction(interaction: Interaction): Promise<void>
       await interaction.reply(reply);
   }
 }
+
+async function handleTorneoModal(interaction: ModalSubmitInteraction): Promise<void> {
+  const rawTag = interaction.fields.getTextInputValue('torneo_tag').trim();
+  const password = interaction.fields.getTextInputValue('torneo_pass').trim() || 'Sin contraseña';
+  const guildId = interaction.guildId;
+
+  // Validar y formatear tag
+  const tag = rawTag.startsWith('#') ? rawTag : `#${rawTag}`;
+
+  try {
+    // Buscar torneo en la API
+    const tournament = await crGet<{
+      name: string;
+      tag: string;
+      status: string;
+      startTime?: string;
+      endTime?: string;
+      playerCount: number;
+      maxPlayers: number;
+    }>(`/tournaments/${encodeURIComponent(tag)}`);
+
+    const startTime = tournament.startTime
+      ? `<t:${Math.floor(new Date(tournament.startTime).getTime() / 1000)}:F>`
+      : 'Sin fecha';
+    const endTime = tournament.endTime
+      ? `<t:${Math.floor(new Date(tournament.endTime).getTime() / 1000)}:F>`
+      : 'Sin fecha';
+    const statusLabel =
+      tournament.status === 'inProgress' ? '🟢 En curso' :
+      tournament.status === 'open' ? '🔵 Abierto' :
+      tournament.status === 'full' ? '🟡 Lleno' :
+      tournament.status === 'ended' ? '🔴 Finalizado' :
+      `⚪ ${tournament.status}`;
+
+    const embed = new EmbedBuilder()
+      .setTitle(`🏆 ${tournament.name}`)
+      .setColor(0x9B59B6)
+      .setDescription('¡Nuevo torneo disponible!')
+      .addFields(
+        { name: 'Tag', value: `\`${tournament.tag}\``, inline: true },
+        { name: 'Contraseña', value: `||${password}||`, inline: true },
+        { name: 'Estado', value: statusLabel, inline: true },
+        { name: 'Jugadores', value: `${tournament.playerCount}/${tournament.maxPlayers}`, inline: true },
+        { name: 'Inicio', value: startTime, inline: true },
+        { name: 'Finalización', value: endTime, inline: true },
+      )
+      .setFooter({ text: `Creado por ${interaction.user.tag}` })
+      .setTimestamp();
+
+    // Buscar canal de torneos
+    let channelId: string | null = null;
+    if (guildId) {
+      const cfg = await prisma.botConfig.findUnique({
+        where: { key: `channel_torneo_${guildId}` },
+      });
+      if (cfg) channelId = cfg.value;
+    }
+
+    if (!channelId) {
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('❌ Canal no configurado')
+            .setDescription('Un líder debe configurar el canal con `/config canal-torneo`.')
+            .setColor(0xE74C3C),
+        ],
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const channel = (await interaction.client.channels.fetch(channelId)) as TextChannel;
+    if (!channel) {
+      await interaction.reply({ content: 'Canal no encontrado.', ephemeral: true });
+      return;
+    }
+
+    await channel.send({ embeds: [embed] });
+
+    await interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle('✅ Torneo publicado')
+          .setDescription(`**${tournament.name}** publicado en ${channel}`)
+          .setColor(EMBED_COLOR),
+      ],
+      ephemeral: true,
+    });
+  } catch (err) {
+    logger.error(`Torneo modal error: ${(err as Error).message}`);
+    await interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle('❌ Error')
+          .setDescription('No se encontró el torneo. Verificá el tag.')
+          .setColor(0xE74C3C),
+      ],
+      ephemeral: true,
+    });
+  }
 }
+}
+

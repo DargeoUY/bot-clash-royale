@@ -76,6 +76,20 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
     return;
   }
 
+  if (subcommand === 'canal-torneo') {
+    const channel = interaction.options.getChannel('canal', true);
+    await prisma.botConfig.upsert({
+      where: { key: `channel_torneo_${interaction.guildId}` },
+      update: { value: channel.id },
+      create: { key: `channel_torneo_${interaction.guildId}`, value: channel.id },
+    });
+    await interaction.reply({
+      embeds: [createEmbed('Configuración', `Canal de torneos configurado: ${channel}`)],
+      ephemeral: true,
+    });
+    return;
+  }
+
   if (subcommand === 'link-whatsapp') {
     const url = interaction.options.getString('url', true);
     await prisma.botConfig.upsert({
@@ -166,6 +180,14 @@ export const botConfig: BotCommand = {
       sub
         .setName('canal-miembros')
         .setDescription('Configurar canal de cambios de miembros')
+        .addChannelOption((opt) =>
+          opt.setName('canal').setDescription('Canal de Discord').setRequired(true),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('canal-torneo')
+        .setDescription('Configurar canal de torneos')
         .addChannelOption((opt) =>
           opt.setName('canal').setDescription('Canal de Discord').setRequired(true),
         ),
