@@ -44,13 +44,13 @@ function formatTop(lines: string[], limit: number): string {
 
 let statsTask: cron.ScheduledTask | null = null;
 
-async function loadPreviousSnapshot(clanTag: string): Promise<Map<string, PlayerStats> | null> {
+async function loadPreviousSnapshot(clanTag: string): Promise<{ date: string; stats: Map<string, PlayerStats> } | null> {
   const key = `stats_snapshot_${clanTag}`;
   const cfg = await prisma.botConfig.findUnique({ where: { key } });
   if (!cfg) return null;
   try {
-    const data: PlayerStats[] = JSON.parse(cfg.value);
-    return new Map(data.map((s) => [s.tag, s]));
+    const data: { date: string; stats: PlayerStats[] } = JSON.parse(cfg.value);
+    return { date: data.date, stats: new Map(data.stats.map((s) => [s.tag, s])) };
   } catch {
     return null;
   }
@@ -58,10 +58,11 @@ async function loadPreviousSnapshot(clanTag: string): Promise<Map<string, Player
 
 async function saveSnapshot(clanTag: string, stats: PlayerStats[]): Promise<void> {
   const key = `stats_snapshot_${clanTag}`;
+  const today = new Date().toISOString().split('T')[0];
   await prisma.botConfig.upsert({
     where: { key },
-    update: { value: JSON.stringify(stats) },
-    create: { key, value: JSON.stringify(stats) },
+    update: { value: JSON.stringify({ date: today, stats }) },
+    create: { key, value: JSON.stringify({ date: today, stats }) },
   });
 }
 
@@ -110,9 +111,11 @@ export async function publishStatsRanking(
   } catch { /* ok */ }
 
   // Daily deltas
-  const prev = await loadPreviousSnapshot(clanTag);
+  const today = new Date().toISOString().split('T')[0];
+  const snapshot = await loadPreviousSnapshot(clanTag);
+  const prev = snapshot?.stats ?? null;
+  const isFirstDay = !snapshot || snapshot.date === today;
   const deltas: DeltaStats[] = [];
-  let isFirstDay = !prev;
 
   for (const c of current) {
     const p = prev?.get(c.tag);
