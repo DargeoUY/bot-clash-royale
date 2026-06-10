@@ -43,6 +43,14 @@ function formatTop(lines: string[], limit: number): string {
   return lines.length === 0 ? 'Sin datos' : lines.slice(0, limit).join('\n');
 }
 
+function formatTwoColumns(lines: string[], limit: number): { left: string; right: string } {
+  const half = Math.ceil(limit / 2);
+  return {
+    left: lines.slice(0, half).join('\n') || '—',
+    right: lines.slice(half, limit).join('\n') || '—',
+  };
+}
+
 let statsTask: cron.ScheduledTask | null = null;
 
 async function loadPreviousSnapshot(clanTag: string): Promise<{ date: string; stats: Map<string, PlayerStats> } | null> {
@@ -225,26 +233,32 @@ export async function publishStatsRanking(
     // ── 1. Victorias / Derrotas ──
     if (byDailyWR.length > 0) {
       const wrLines = byDailyWR.map((d, i) =>
-        `**${medal(i)} ${d.name}**\n᛫ ${d.wins}V / ${d.losses}D — ${d.winRate}% WR`
+        `**${medal(i)}** **${d.name}**\n᛫ ${d.wins}V / ${d.losses}D — ${d.winRate}% WR`
       );
+      const cols = formatTwoColumns(wrLines, 10);
       const wr = new EmbedBuilder()
         .setTitle('⚔️ Victorias / Derrotas')
         .setColor(0xE74C3C)
-        .setThumbnail('https://cdn.royaleapi.com/static/ui/battle.png')
-        .setDescription(formatTop(wrLines, 10));
+        .addFields(
+          { name: '\u200b', value: cols.left, inline: true },
+          { name: '\u200b', value: cols.right, inline: true },
+        );
       await channel.send({ embeds: [wr] });
     }
 
     // ── 2. Donaciones de Cartas ──
     if (byDonations.some((d) => d.donations > 0)) {
       const donLines = byDonations.map((d, i) =>
-        `**${medal(i)} ${d.name}**\n᛫ ${d.donations.toLocaleString()} cartas donadas`
+        `**${medal(i)}** **${d.name}**\n᛫ ${d.donations.toLocaleString()} 💎 donadas`
       );
+      const cols = formatTwoColumns(donLines, 10);
       const don = new EmbedBuilder()
         .setTitle('💎 Donaciones de Cartas')
         .setColor(0xFF69B4)
-        .setThumbnail('https://cdn.royaleapi.com/static/ui/cards.png')
-        .setDescription(formatTop(donLines, 10));
+        .addFields(
+          { name: '\u200b', value: cols.left, inline: true },
+          { name: '\u200b', value: cols.right, inline: true },
+        );
       await channel.send({ embeds: [don] });
     }
 
@@ -252,26 +266,32 @@ export async function publishStatsRanking(
     if (byTrophies.length > 0) {
       const tropLines = byTrophies.map((d, i) => {
         const diff = d.trophies >= 0 ? `+${d.trophies}` : `${d.trophies}`;
-        return `**${medal(i)} ${d.name}**\n᛫ ${diff} copas`;
+        return `**${medal(i)}** **${d.name}**\n᛫ ${diff} copas`;
       });
+      const cols = formatTwoColumns(tropLines, 10);
       const trop = new EmbedBuilder()
         .setTitle('🏆 Mayor Cantidad de Copas')
         .setColor(0xFFD700)
-        .setImage('https://fotografias-2.larazon.es/clipping/cmsimages02/2020/12/10/DB8E7760-08CA-42AA-B0B1-61A2D9C6060B/98.jpg?crop=4096,2305,x0,y213&width=1900&height=1069&optimize=low&format=webply')
-        .setDescription(formatTop(tropLines, 10));
+        .addFields(
+          { name: '\u200b', value: cols.left, inline: true },
+          { name: '\u200b', value: cols.right, inline: true },
+        );
       await channel.send({ embeds: [trop] });
     }
 
     // ── 4. Guerra de Clanes ──
     if (warStats.length > 0) {
       const warLines = byFame.map((p, i) =>
-        `**${medal(i)} ${p.name}**\n᛫ ${p.fame} fama ⚡ ${p.decksUsed} decks`
+        `**${medal(i)}** **${p.name}**\n᛫ ${p.fame} fama ⚡ ${p.decksUsed} decks`
       );
+      const cols = formatTwoColumns(warLines, 10);
       const war = new EmbedBuilder()
         .setTitle(`⚔️ Guerra de Clanes (${totalFame} fama)`)
         .setColor(0x9B59B6)
-        .setThumbnail('https://cdn.royaleapi.com/static/ui/war.png')
-        .setDescription(formatTop(warLines, 10));
+        .addFields(
+          { name: '\u200b', value: cols.left, inline: true },
+          { name: '\u200b', value: cols.right, inline: true },
+        );
       await channel.send({ embeds: [war] });
     } else {
       const war = new EmbedBuilder()
