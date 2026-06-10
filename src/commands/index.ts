@@ -14,6 +14,7 @@ import { ranking } from './puntos';
 import { ausencia } from './ausencia';
 import { exportar } from './exportar';
 import { whatsapp } from './whatsapp';
+import { diagnostico } from './diagnostico';
 
 export const commands = new Map<string, BotCommand>([
   ['registrar', registrar],
@@ -31,4 +32,5 @@ export const commands = new Map<string, BotCommand>([
   ['ausencia', ausencia],
   ['exportar', exportar],
   ['whatsapp', whatsapp],
+  ['diagnostico', diagnostico],
 ]);
