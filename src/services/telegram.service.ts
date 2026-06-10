@@ -7,7 +7,7 @@ let chatId: string | null = null;
 export function configureTelegram(token: string, chat: string): void {
   botToken = token;
   chatId = chat;
-  logger.info('Telegram configured');
+  logger.info(`Telegram configured: chat=${chat}`);
 }
 
 export async function loadTelegramConfig(guildId: string): Promise<void> {
@@ -19,7 +19,6 @@ export async function loadTelegramConfig(guildId: string): Promise<void> {
   });
   if (tokenCfg && chatCfg) {
     configureTelegram(tokenCfg.value, chatCfg.value);
-    logger.info('Telegram config loaded from DB');
   }
 }
 
@@ -31,18 +30,18 @@ export async function sendTelegramMessage(text: string): Promise<{ ok: boolean; 
   if (!botToken || !chatId) return { ok: false, error: 'No configurado' };
 
   try {
-    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-    const body = JSON.stringify({
-      chat_id: chatId,
+    const params = new URLSearchParams({
+      chat_id: String(chatId),
       text,
       parse_mode: 'HTML',
-      disable_web_page_preview: true,
+      disable_web_page_preview: 'true',
     });
 
+    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
     const resp = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
     });
 
     const data = await resp.json() as { ok: boolean; description?: string };
