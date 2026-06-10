@@ -3,6 +3,7 @@ import { BotCommand } from '../types';
 import { getGuildClanTag } from '../utils/guild';
 import { getClanMembers } from '../api/clan';
 import { errorEmbed, EMBED_COLOR } from '../utils/embeds';
+import prisma from '../database/prisma';
 
 function parseDate(value: string): Date | null {
   try {
@@ -35,10 +36,36 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
         : { warning: 2, inactive: 7, kick: 14 };
 
     for (const m of members) {
-      if (!m.lastSeen) continue;
-      const d = parseDate(m.lastSeen);
-      if (!d) continue;
-      const days = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+      const lastSeen = parseDate(m.lastSeen);
+
+      // Guardar en DB silenciosamente
+      try {
+        await prisma.player.upsert({
+          where: { tag: m.tag },
+          update: {
+            name: m.name,
+            role: m.role,
+            expLevel: m.expLevel,
+            trophies: m.trophies,
+            clanTag,
+            status: 'active',
+            ...(lastSeen ? { lastActiveAt: lastSeen } : {}),
+          },
+          create: {
+            tag: m.tag,
+            name: m.name,
+            role: m.role,
+            expLevel: m.expLevel,
+            trophies: m.trophies,
+            clanTag,
+            status: 'active',
+            ...(lastSeen ? { lastActiveAt: lastSeen } : {}),
+          },
+        });
+      } catch { /* ignorar errores de DB */ }
+
+      if (!lastSeen) continue;
+      const days = Math.floor((now.getTime() - lastSeen.getTime()) / (1000 * 60 * 60 * 24));
       if (days < 2) continue;
 
       let status: string;
