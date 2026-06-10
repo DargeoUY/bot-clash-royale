@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Clan {
+  id             Int       @id @default(autoincrement())
+  tag            String    @unique
+  name           String
+  description    String?
+  level          Int?
+  memberCount    Int?
+  discordGuildId String?
+  isPrimary      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt()
+
+  players        Player[]
+  warLogs        WarLog[]
+  botConfigs     BotConfig[]
+}
+
+model Player {
+  id            Int       @id @default(autoincrement())
+  tag           String    @unique
+  name          String
+  role          String?   // member, elder, coLeader, leader
+  expLevel      Int?
+  trophies      Int?
+  clanTag       String?
+  discordId     String?
+  isRegistered  Boolean   @default(false)
+  lastActiveAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt()
+
+  clan            Clan?             @relation(fields: [clanTag], references: [tag])
+  warParticipants WarParticipant[]
+  points          PlayerPoint[]
+  inactivityLogs  InactivityLog[]
+  pointHistory    PointHistory[]
+  vacations       Vacation[]
+  donations       DonationLog[]
+}
+
+model WarLog {
+  id             Int       @id @default(autoincrement())
+  clanTag        String
+  seasonId       String?
+  warType        String    // riverRace, classic
+  startDate      DateTime
+  endDate        DateTime?
+  participants   Int?
+  battlesPlayed  Int?
+  wins           Int?
+  losses         Int?
+  fame           Int?
+  createdAt      DateTime  @default(now())
+
+  clan            Clan              @relation(fields: [clanTag], references: [tag])
+  warParticipants WarParticipant[]
+}
+
+model WarParticipant {
+  id             Int       @id @default(autoincrement())
+  warLogId       Int
+  playerTag      String
+  battlesPlayed  Int       @default(0)
+  battlesWon     Int       @default(0)
+  battlesLost    Int       @default(0)
+  decksUsed      Int       @default(0)
+  decksUsedToday Int?
+  boatsAttacked  Int?
+  repairPoints   Int?
+  fame           Int?
+  createdAt      DateTime  @default(now())
+
+  warLog         WarLog    @relation(fields: [warLogId], references: [id])
+  player         Player    @relation(fields: [playerTag], references: [tag])
+
+  @@unique([warLogId, playerTag])
+}
+
+model PlayerPoint {
+  id             Int       @id @default(autoincrement())
+  playerTag      String
+  totalPoints    Int       @default(0)
+  warPoints      Int       @default(0)
+  activityPoints Int       @default(0)
+  bonusPoints    Int       @default(0)
+  season         String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt()
+
+  player         Player    @relation(fields: [playerTag], references: [tag])
+
+  @@unique([playerTag, season])
+}
+
+model PointHistory {
+  id          Int       @id @default(autoincrement())
+  playerTag   String
+  points      Int
+  reason      String
+  description String?
+  season      String?
+  createdAt   DateTime  @default(now())
+
+  player      Player    @relation(fields: [playerTag], references: [tag])
+}
+
+model InactivityLog {
+  id             Int       @id @default(autoincrement())
+  playerTag      String
+  daysInactive   Int
+  notifiedAt     DateTime?
+  notifiedCount  Int       @default(0)
+  status         String    @default("active")
+  lastNotifiedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt()
+
+  player         Player    @relation(fields: [playerTag], references: [tag])
+}
+
+model Vacation {
+  id         Int       @id @default(autoincrement())
+  playerTag  String
+  reason     String?
+  startDate  DateTime
+  endDate    DateTime
+  isActive   Boolean   @default(true)
+  createdBy  String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt()
+
+  player     Player    @relation(fields: [playerTag], references: [tag])
+}
+
+model DonationLog {
+  id               Int       @id @default(autoincrement())
+  playerTag        String
+  donations        Int       @default(0)
+  donationsReceived Int      @default(0)
+  season           String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt()
+
+  player           Player    @relation(fields: [playerTag], references: [tag])
+
+  @@unique([playerTag, season])
+}
+
+model BotConfig {
+  id        Int      @id @default(autoincrement())
+  clanTag   String?
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+
+  clan      Clan?    @relation(fields: [clanTag], references: [tag])
+}

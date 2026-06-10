@@ -1,0 +1,84 @@
+import http from 'http';
+import { Client, GatewayIntentBits, Events } from 'discord.js';
+import { config } from './config';
+import logger from './config/logger';
+import { startSyncTasks, stopSyncTasks } from './tasks/sync-clan';
+import { startInactivityCheck, stopInactivityCheck } from './tasks/check-inactivity';
+import { startReportTasks, stopReportTasks } from './tasks/weekly-report';
+import { startMonthlyTasks, stopMonthlyTasks } from './tasks/monthly-report';
+import { startRoleUpdater, stopRoleUpdater } from './tasks/update-roles';
+import { startBackupTask, stopBackupTask } from './tasks/backup-database';
+import { handleInteraction } from './events/interactionCreate';
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+  ],
+});
+
+client.once(Events.ClientReady, (readyClient) => {
+  logger.info(`Bot conectado como ${readyClient.user.tag}`);
+  logger.info(`Sirviendo ${readyClient.guilds.cache.size} servidores`);
+
+  client.user?.setActivity('/ayuda | Clash Royale', { type: 3 }); // Watching
+
+  startSyncTasks();
+  startInactivityCheck();
+  startReportTasks(client);
+  startMonthlyTasks(client);
+  startRoleUpdater(client);
+  startBackupTask();
+});
+
+client.on(Events.GuildCreate, (guild) => {
+  logger.info(`Bot añadido al servidor: ${guild.name} (${guild.id})`);
+});
+
+client.on(Events.Error, (error) => {
+  logger.error('Error de Discord:', error);
+});
+
+client.on(Events.Warn, (warning) => {
+  logger.warn('Advertencia de Discord:', warning);
+});
+
+client.on(Events.InteractionCreate, handleInteraction);
+
+export async function startBot(): Promise<void> {
+  await client.login(config.DISCORD_TOKEN);
+  logger.info('Bot iniciado correctamente');
+}
+
+const healthServer = http.createServer((_req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
+});
+
+function shutdown(): void {
+  logger.info('Apagando bot...');
+  stopSyncTasks();
+  stopInactivityCheck();
+  stopReportTasks();
+  stopMonthlyTasks();
+  stopRoleUpdater();
+  stopBackupTask();
+  client.destroy();
+  healthServer.close();
+  process.exit(0);
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
+startBot()
+  .then(() => {
+    healthServer.listen(config.HEALTHCHECK_PORT, () => {
+      logger.info(`Healthcheck en puerto ${config.HEALTHCHECK_PORT}`);
+    });
+  })
+  .catch((error) => {
+    logger.error('Error fatal al iniciar el bot:', error);
+    process.exit(1);
+  });
+
+export { client };
