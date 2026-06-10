@@ -55,7 +55,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
         const last5 = battles.slice(0, 5);
         const lines = last5.map((b) => {
           const won = b.teamCrowns !== undefined && b.opponentCrowns !== undefined
-            ? b.teamCrowns > b.opponentCrowns ? '✅' : b.teamCrowns < b.opponentCrowns ? '❌' : '🤝'
+            ? b.teamCrowns > b.opponentCrowns ? '✅' : '❌'
             : '⚔️';
           const crownInfo = b.teamCrowns !== undefined ? ` ${b.teamCrowns}-${b.opponentCrowns}` : '';
           const mode = b.gameMode?.name || 'Batalla';

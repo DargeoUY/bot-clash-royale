@@ -3,6 +3,7 @@ import { Client, TextChannel, EmbedBuilder } from 'discord.js';
 import prisma from '../database/prisma';
 import { getClanMembers } from '../api/clan';
 import { getPlayerInfo } from '../api/player';
+import { getCurrentRiverRace } from '../api/clan';
 import { getAllClanConfigs } from '../utils/guild';
 import { EMBED_COLOR } from '../utils/embeds';
 import logger from '../config/logger';
@@ -16,7 +17,18 @@ interface PlayerStats {
   winRate: number;
   donations: number;
   trophies: number;
-  threeCrowns: number;
+}
+
+interface WarStats {
+  tag: string;
+  name: string;
+  fame: number;
+  decksUsed: number;
+}
+
+function formatTop(list: string[], limit: number): string {
+  if (list.length === 0) return 'Sin datos';
+  return list.slice(0, limit).join('\n');
 }
 
 let statsTask: cron.ScheduledTask | null = null;
@@ -47,7 +59,6 @@ export async function publishStatsRanking(
         winRate: rate,
         donations: player.totalDonations || 0,
         trophies: player.trophies,
-        threeCrowns: player.threeCrownWins || 0,
       });
     } catch (err) {
       errors++;
@@ -60,34 +71,44 @@ export async function publishStatsRanking(
     return;
   }
 
-  const topWins = [...stats].sort((a, b) => b.wins - a.wins);
-  const topRate = [...stats].sort((a, b) => b.winRate - a.winRate);
-  const topDonations = [...stats].sort((a, b) => b.donations - a.donations);
-  const topTrophies = [...stats].sort((a, b) => b.trophies - a.trophies);
-  const topCrowns = [...stats].sort((a, b) => b.threeCrowns - a.threeCrowns);
+  // Rankings
+  const byWinRate = [...stats].sort((a, b) => b.winRate - a.winRate);
+  const byDonations = [...stats].sort((a, b) => b.donations - a.donations);
+  const byTrophies = [...stats].sort((a, b) => b.trophies - a.trophies);
+
+  // War stats
+  const warStats: WarStats[] = [];
+  try {
+    const race = await getCurrentRiverRace(clanTag);
+    if (race.clan?.participants) {
+      for (const p of race.clan.participants) {
+        warStats.push({
+          tag: p.tag,
+          name: p.name,
+          fame: p.fame,
+          decksUsed: p.decksUsed,
+        });
+      }
+    }
+  } catch { /* ok */ }
+  const byFame = [...warStats].sort((a, b) => b.fame - a.fame);
+
+  // Totals
   const totalWins = stats.reduce((s, p) => s + p.wins, 0);
   const totalLosses = stats.reduce((s, p) => s + p.losses, 0);
   const totalDonations = stats.reduce((s, p) => s + p.donations, 0);
   const clanRate = (totalWins + totalLosses) > 0
     ? Math.round((totalWins / (totalWins + totalLosses)) * 100)
     : 0;
+  const totalFame = warStats.reduce((s, p) => s + p.fame, 0);
 
   // Save to database
   for (const s of stats) {
     try {
       await prisma.player.upsert({
         where: { tag: s.tag },
-        update: {
-          name: s.name,
-          status: 'active',
-          clanTag,
-        },
-        create: {
-          tag: s.tag,
-          name: s.name,
-          clanTag,
-          status: 'active',
-        },
+        update: { name: s.name, status: 'active', clanTag },
+        create: { tag: s.tag, name: s.name, clanTag, status: 'active' },
       });
     } catch { /* skip */ }
   }
@@ -108,38 +129,53 @@ export async function publishStatsRanking(
     if (!channel) return;
 
     const embed = new EmbedBuilder()
-      .setTitle('📊 Ranking de Estadísticas del Clan')
+      .setTitle('📊 Ranking del Clan — Semanal')
       .setColor(EMBED_COLOR)
-      .setDescription(`**${members.length}** jugadores | **${totalWins.toLocaleString()}** ✅ | **${totalLosses.toLocaleString()}** ❌ | **${clanRate}%** WR | **${totalDonations.toLocaleString()}** 💎`)
+      .setDescription(
+        `**${members.length}** jugadores | **${clanRate}%** WR global | ` +
+        `✅ ${totalWins.toLocaleString()}V ❌ ${totalLosses.toLocaleString()}D | ` +
+        `💎 ${totalDonations.toLocaleString()} donaciones`
+      )
       .setFooter({ text: `Actualizado cada 24h | Errores: ${errors}` })
       .setTimestamp();
 
-    const topWinsList = topWins.slice(0, 5).map((p, i) => {
-      const m = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
-      return `\`${m}\` **${p.name}** — ${p.wins}V / ${p.losses}D (${p.winRate}%)`;
-    }).join('\n');
+    // ── Victorias/Derrotas (por win rate) ──
+    const wrList = byWinRate.map((p, i) => {
+      const m = i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`;
+      return `**${m}** **${p.name}** — ${p.wins}V / ${p.losses}D (${p.winRate}%)`;
+    });
+    embed.addFields({ name: '⚔️ Victorias / Derrotas', value: formatTop(wrList, 5) });
 
-    const topRateList = topRate.slice(0, 5).map((p, i) => {
-      const m = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
-      return `\`${m}\` **${p.name}** — ${p.winRate}%`;
-    }).join('\n');
+    // ── Donaciones de Cartas ──
+    const donList = byDonations.map((p, i) => {
+      const m = i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`;
+      return `**${m}** **${p.name}** — ${p.donations.toLocaleString()} 💎`;
+    });
+    embed.addFields({ name: '💎 Donaciones de Cartas', value: formatTop(donList, 5) });
 
-    const topDonationsList = topDonations.slice(0, 5).map((p, i) => {
-      const m = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
-      return `\`${m}\` **${p.name}** — ${p.donations.toLocaleString()} 💎`;
-    }).join('\n');
+    // ── Copas ──
+    const tropList = byTrophies.map((p, i) => {
+      const m = i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`;
+      return `**${m}** **${p.name}** — 🏆 ${p.trophies}`;
+    });
+    embed.addFields({ name: '🏆 Mayor Cantidad de Copas', value: formatTop(tropList, 5) });
 
-    const topCrownsList = topCrowns.slice(0, 5).map((p, i) => {
-      const m = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
-      return `\`${m}\` **${p.name}** — ${p.threeCrowns} 👑`;
-    }).join('\n');
-
-    embed.addFields(
-      { name: '🏆 Top Victorias', value: topWinsList || 'Sin datos', inline: false },
-      { name: '🎯 Top Win Rate', value: topRateList || 'Sin datos', inline: false },
-      { name: '💎 Top Donaciones', value: topDonationsList || 'Sin datos', inline: false },
-      { name: '👑 Top 3-Coronas', value: topCrownsList || 'Sin datos', inline: false },
-    );
+    // ── Guerra de Clanes ──
+    if (warStats.length > 0) {
+      const warList = byFame.map((p, i) => {
+        const m = i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`;
+        return `**${m}** **${p.name}** — ${p.fame} fama ⚡ ${p.decksUsed} decks`;
+      });
+      embed.addFields({
+        name: `⚔️ Guerra de Clanes (${totalFame} fama total)`,
+        value: formatTop(warList, 5),
+      });
+    } else {
+      embed.addFields({
+        name: '⚔️ Guerra de Clanes',
+        value: 'Sin guerra activa en este momento.',
+      });
+    }
 
     await channel.send({ embeds: [embed] });
     logger.info(`Stats ranking published to ${channel.name} (${stats.length} players)`);
@@ -149,7 +185,6 @@ export async function publishStatsRanking(
 }
 
 export function startStatsRanking(client: Client): void {
-  // Run at 8:00 AM UTC daily
   statsTask = cron.schedule('0 8 * * *', async () => {
     logger.info('Stats ranking task: starting...');
     const clans = await getAllClanConfigs();

@@ -202,7 +202,7 @@ export const ranking: BotCommand = {
         ),
     )
     .addSubcommand((sub) =>
-      sub.setName('stats').setDescription('Ranking de estadísticas: victorias, donaciones, trofeos, 3-coronas'),
+      sub.setName('stats').setDescription('Ranking: V/D, Donaciones, Copas, Guerra'),
     ),
   execute: async (interaction) => {
     const sub = interaction.options.getSubcommand();
