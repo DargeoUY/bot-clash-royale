@@ -21,13 +21,17 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
     playerTag = formatPlayerTag(rawTag);
   } else {
     await interaction.editReply({
-      embeds: [errorEmbed('Falta tag', 'Necesitás estar registrado con /registrar o especificar un tag.')],
+      embeds: [errorEmbed('Falta tag', 'Usá /perfil #TAG para ver un perfil específico.')],
     });
     return;
   }
 
   try {
     const player = await getPlayerInfo(playerTag);
+
+    const winRate = player.battleCount > 0
+      ? Math.round((player.wins / player.battleCount) * 100)
+      : 0;
 
     const embed = new EmbedBuilder()
       .setTitle(`🏆 ${player.name}`)
@@ -36,9 +40,11 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
       .addFields(
         { name: 'Tag', value: player.tag, inline: true },
         { name: 'Nivel', value: `${player.expLevel}`, inline: true },
-        { name: 'Trofeos', value: `${player.trophies}`, inline: true },
+        { name: 'Trofeos', value: `🏆 ${player.trophies}`, inline: true },
         { name: 'Récord', value: `${player.bestTrophies}`, inline: true },
         { name: 'Victorias', value: `${player.wins}`, inline: true },
+        { name: 'Derrotas', value: `${player.losses}`, inline: true },
+        { name: 'Win Rate', value: `${winRate}%`, inline: true },
         { name: 'Batallas', value: `${player.battleCount}`, inline: true },
         { name: 'Donaciones', value: `${player.totalDonations}`, inline: true },
         { name: 'Arena', value: player.arena?.name || 'N/A', inline: true },
