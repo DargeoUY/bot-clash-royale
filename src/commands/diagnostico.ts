@@ -71,8 +71,8 @@ export async function executeDiagnostico(interaction: ChatInputCommandInteractio
   // ── Telegram ──
   results.push(await runTest('Telegram', async () => {
     if (!isTelegramConfigured()) return 'No configurado';
-    const ok = await sendTelegramMessage('🧪 Test de conexión desde Asistente Royale');
-    return ok ? 'Mensaje enviado OK' : 'Falló el envío';
+    const result = await sendTelegramMessage('🧪 Test desde Asistente Royale');
+    return result.ok ? 'OK' : `Falló: ${result.error}`;
   }));
 
   // ── Build report ──

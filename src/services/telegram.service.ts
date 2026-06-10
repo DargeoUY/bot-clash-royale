@@ -13,8 +13,8 @@ export function isTelegramConfigured(): boolean {
   return !!(botToken && chatId);
 }
 
-export async function sendTelegramMessage(text: string): Promise<boolean> {
-  if (!botToken || !chatId) return false;
+export async function sendTelegramMessage(text: string): Promise<{ ok: boolean; error?: string }> {
+  if (!botToken || !chatId) return { ok: false, error: 'No configurado' };
 
   try {
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
@@ -31,19 +31,25 @@ export async function sendTelegramMessage(text: string): Promise<boolean> {
       body,
     });
 
-    if (!resp.ok) {
-      logger.warn(`Telegram send failed: ${resp.status} ${await resp.text()}`);
-      return false;
+    const data = await resp.json() as { ok: boolean; description?: string };
+    if (!resp.ok || !data.ok) {
+      const err = data.description || `HTTP ${resp.status}`;
+      logger.warn(`Telegram failed: ${err}`);
+      return { ok: false, error: err };
     }
 
     logger.info('Telegram message sent');
-    return true;
+    return { ok: true };
   } catch (err) {
-    logger.error(`Telegram error: ${(err as Error).message}`);
-    return false;
+    const msg = (err as Error).message;
+    logger.error(`Telegram error: ${msg}`);
+    return { ok: false, error: msg };
   }
 }
 
-export async function sendTelegramRanking(text: string): Promise<boolean> {
-  return sendTelegramMessage(text);
+export async function sendTelegramRanking(text: string): Promise<void> {
+  const result = await sendTelegramMessage(text);
+  if (!result.ok) {
+    logger.warn(`Telegram ranking not sent: ${result.error}`);
+  }
 }
