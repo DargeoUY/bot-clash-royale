@@ -155,15 +155,13 @@ export async function handleTelegramCommand(
       if (deltaCfg) {
         const deltas = JSON.parse(deltaCfg.value) as { name: string; trophies: number; wins: number; losses: number; donations: number }[];
         const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies).slice(0, 5);
-        if (byTrophies.some(d => d.trophies > 0)) {
+        if (byTrophies.length > 0) {
           msg += '<b>🏆 Top Copas (hoy)</b>\n';
           byTrophies.forEach((d, i) => {
             const sign = d.trophies > 0 ? '+' : '';
             msg += `${medal(i)} <b>${d.name}</b> — ${sign}${d.trophies}\n`;
           });
           msg += '\n';
-        } else {
-          msg += '<b>🏆 Top Copas (hoy)</b>\n<i>Sin cambios todavía.</i>\n\n';
         }
       }
     } catch { /* ok */ }
