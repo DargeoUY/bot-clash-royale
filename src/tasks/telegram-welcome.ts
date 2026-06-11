@@ -151,7 +151,10 @@ async function pollUpdates(token: string): Promise<void> {
         const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
         const reply = await handleTelegramCommand(msg.chat.id, msg.from.id, msg.text.trim(), isGroup);
         if (reply) {
-          await sendText(msg.chat.id, reply, msg.message_id);
+          await sendText(msg.chat.id, reply.text, msg.message_id);
+          if (reply.privateText) {
+            await sendText(msg.from.id, reply.privateText);
+          }
         }
       }
     }
