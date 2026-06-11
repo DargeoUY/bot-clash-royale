@@ -27,6 +27,13 @@ async function requireRegistration(userId: number): Promise<string | null> {
   return null;
 }
 
+async function getClanForChat(chatId: number): Promise<string> {
+  const cfg = await prisma.botConfig.findUnique({
+    where: { key: `telegram_group_clan_${chatId}` },
+  });
+  return cfg?.value || '#28P8RQUY';
+}
+
 function medal(i: number): string {
   return i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`;
 }
@@ -69,10 +76,7 @@ export async function handleTelegramCommand(
       const player = await getPlayerInfo(tag);
       if (!player) return { text: '❌ Jugador no encontrado. Verificá el tag.' };
 
-      const clanCfg = await prisma.botConfig.findFirst({
-        where: { key: { startsWith: 'clan_tag_' } },
-      });
-      const clanTag = clanCfg?.value || '#28P8RQUY';
+      const clanTag = await getClanForChat(chatId);
       const expectedClan = cleanTag(clanTag);
 
       if (player.clan?.tag !== expectedClan) {
@@ -151,10 +155,8 @@ export async function handleTelegramCommand(
     const err = await requireRegistration(userId);
     if (err) return { text: err };
 
-    const clanCfg = await prisma.botConfig.findFirst({
-      where: { key: { startsWith: 'clan_tag_' } },
-    });
-    const clanTag = clanCfg?.value || '#28P8RQUY';
+    const clanTag = await getClanForChat(chatId);
+    const cleanClan = cleanTag(clanTag);
 
     interface AccEntry { tag: string; name: string; wins: number; losses: number; donations: number; trophies: number; fame: number; }
 
@@ -163,7 +165,7 @@ export async function handleTelegramCommand(
     // Daily deltas
     try {
       const deltaCfg = await prisma.botConfig.findUnique({
-        where: { key: `daily_deltas_${cleanTag(clanTag)}` },
+        where: { key: `daily_deltas_${cleanClan}` },
       });
       if (deltaCfg) {
         const deltas = JSON.parse(deltaCfg.value) as { name: string; trophies: number; wins: number; losses: number }[];
@@ -195,7 +197,7 @@ export async function handleTelegramCommand(
     // Weekly accumulator
     try {
       const accCfg = await prisma.botConfig.findUnique({
-        where: { key: `weekly_acc_${cleanTag(clanTag)}` },
+        where: { key: `weekly_acc_${cleanClan}` },
       });
       if (accCfg) {
         const acc: AccEntry[] = JSON.parse(accCfg.value);
@@ -250,10 +252,7 @@ export async function handleTelegramCommand(
     const err = await requireRegistration(userId);
     if (err) return { text: err };
 
-    const clanCfg = await prisma.botConfig.findFirst({
-      where: { key: { startsWith: 'clan_tag_' } },
-    });
-    const clanTag = clanCfg?.value || '#28P8RQUY';
+    const clanTag = await getClanForChat(chatId);
 
     try {
       const clan = await getClanInfo(clanTag);

@@ -3,6 +3,7 @@ import { BotCommand } from '../types';
 import { errorEmbed, createEmbed } from '../utils/embeds';
 import prisma from '../database/prisma';
 import { loadTelegramConfig } from '../services/telegram.service';
+import { getGuildClanTag } from '../utils/guild';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
@@ -156,9 +157,17 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
       update: { value: chat },
       create: { key: `telegram_chat_${interaction.guildId}`, value: chat },
     });
+
+    const clanTag = await getGuildClanTag(interaction.guildId!);
+    await prisma.botConfig.upsert({
+      where: { key: `telegram_group_clan_${chat}` },
+      update: { value: clanTag },
+      create: { key: `telegram_group_clan_${chat}`, value: clanTag },
+    });
+
     await loadTelegramConfig(interaction.guildId!);
     await interaction.reply({
-      embeds: [createEmbed('Configuración', 'Chat ID de Telegram configurado.')],
+      embeds: [createEmbed('Configuración', `Chat ID de Telegram configurado y vinculado al clan ${clanTag}.`)],
       ephemeral: true,
     });
     return;
