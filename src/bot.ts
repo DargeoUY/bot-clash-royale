@@ -12,6 +12,7 @@ import { startStatsRanking, stopStatsRanking } from './tasks/stats-ranking';
 import { startWeeklyWinners, stopWeeklyWinners } from './tasks/weekly-winners';
 import { startMonthlyWinners, stopMonthlyWinners } from './tasks/monthly-winners';
 import { initTelegram } from './tasks/telegram-init';
+import { startTelegramWelcome, stopTelegramWelcome } from './tasks/telegram-welcome';
 import { handleInteraction } from './events/interactionCreate';
 import { crGet } from './api/client';
 
@@ -60,6 +61,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   startWeeklyWinners(client);
   startMonthlyWinners(client);
   initTelegram(client);
+  startTelegramWelcome();
 });
 
 client.on(Events.GuildCreate, (guild) => {
@@ -97,6 +99,7 @@ function shutdown(): void {
   stopStatsRanking();
   stopWeeklyWinners();
   stopMonthlyWinners();
+  stopTelegramWelcome();
   client.destroy();
   healthServer.close();
   process.exit(0);
