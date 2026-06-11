@@ -17,6 +17,7 @@ import { whatsapp } from './whatsapp';
 import { diagnostico } from './diagnostico';
 import { torneo } from './torneo';
 import { debugTelegram } from './debug-telegram';
+import { vincular } from './vincular';
 
 export const commands = new Map<string, BotCommand>([
   ['registrar', registrar],
@@ -37,4 +38,5 @@ export const commands = new Map<string, BotCommand>([
   ['diagnostico', diagnostico],
   ['torneo', torneo],
   ['debug-telegram', debugTelegram],
+  ['vincular', vincular],
 ]);

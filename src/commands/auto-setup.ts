@@ -47,6 +47,15 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
             `<@&${result.roles.recluta}> — Recluta`,
           ].join('\n'),
         },
+        {
+          name: '📱 Próximo paso — Telegram',
+          value: [
+            `1. Agregá el bot a tu grupo de Telegram:`,
+            `   https://t.me/UruguayConQueso_Bot?startgroup=true`,
+            `2. El bot te dará un código (ej: XK92)`,
+            `3. En Discord usá **/vincular** y completá el formulario`,
+          ].join('\n'),
+        },
       )
       .setFooter({ text: 'La guía de uso fue publicada y pineada en el canal de guía' })
       .setTimestamp();

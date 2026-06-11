@@ -2,6 +2,7 @@ import { Client, TextChannel, EmbedBuilder } from 'discord.js';
 import prisma from '../database/prisma';
 import { InactivityCheck } from './inactivity.service';
 import { EMBED_COLOR, EMBED_ERROR_COLOR } from '../utils/embeds';
+import { config } from '../config';
 import logger from '../config/logger';
 
 export const STATUS_LABELS: Record<string, string> = {
@@ -12,10 +13,8 @@ export const STATUS_LABELS: Record<string, string> = {
 
 async function sendTelegramDM(telegramId: string, playerName: string, daysInactive: number, status: string): Promise<void> {
   try {
-    const tokenCfg = await prisma.botConfig.findFirst({
-      where: { key: { startsWith: 'telegram_token_' } },
-    });
-    if (!tokenCfg?.value) return;
+    const token = config.TELEGRAM_BOT_TOKEN;
+    if (!token) return;
 
     const label = STATUS_LABELS[status] || status;
     let text = `<b>Aviso de Inactividad</b>\n\n`;
@@ -30,7 +29,7 @@ async function sendTelegramDM(telegramId: string, playerName: string, daysInacti
       parse_mode: 'HTML',
     });
 
-    const url = `https://api.telegram.org/bot${tokenCfg.value}/sendMessage`;
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
     await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

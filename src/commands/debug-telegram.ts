@@ -2,31 +2,27 @@ import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { BotCommand } from '../types';
 import prisma from '../database/prisma';
 import { isTelegramConfigured } from '../services/telegram.service';
+import { config } from '../config';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
 
   const guildId = interaction.guildId!;
 
-  const tokenCfg = await prisma.botConfig.findUnique({
-    where: { key: `telegram_token_${guildId}` },
-  });
   const chatCfg = await prisma.botConfig.findUnique({
     where: { key: `telegram_chat_${guildId}` },
   });
 
   const configured = isTelegramConfigured();
-  const token = tokenCfg?.value || 'NO CONFIGURADO';
+  const tokenPreview = config.TELEGRAM_BOT_TOKEN
+    ? `${config.TELEGRAM_BOT_TOKEN.substring(0, 10)}...${config.TELEGRAM_BOT_TOKEN.substring(config.TELEGRAM_BOT_TOKEN.length - 10)}`
+    : 'NO CONFIGURADO (TELEGRAM_BOT_TOKEN en .env)';
   const chatId = chatCfg?.value || 'NO CONFIGURADO';
-
-  const tokenPreview = token !== 'NO CONFIGURADO'
-    ? `${token.substring(0, 10)}...${token.substring(token.length - 10)}`
-    : token;
 
   let result = `**Configuración de Telegram**\n\n`;
   result += `**Estado en memoria:** ${configured ? '✅ Configurado' : '❌ No configurado'}\n\n`;
-  result += `**Token (DB):** \`${tokenPreview}\`\n`;
-  result += `Longitud: ${token.length}\n\n`;
+  result += `**Token (.env):** \`${tokenPreview}\`\n`;
+  result += `Longitud: ${config.TELEGRAM_BOT_TOKEN?.length || 0}\n\n`;
   result += `**Chat ID (DB):** \`${chatId}\`\n`;
   result += `Longitud: ${chatId.length}\n`;
   result += `Tipo: ${typeof chatId}\n\n`;

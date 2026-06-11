@@ -4,6 +4,7 @@ import { commands } from '../commands';
 import { errorEmbed, isAdmin, EMBED_COLOR } from '../utils/embeds';
 import prisma from '../database/prisma';
 import { getClanMembers } from '../api/clan';
+import { getClanInfo } from '../api/clan';
 import { getGuildClanTag } from '../utils/guild';
 import { handleTorneoModal } from '../services/torneo.service';
 
@@ -141,6 +142,69 @@ async function handleModal(interaction: ModalSubmitInteraction): Promise<void> {
       ],
       ephemeral: true,
     });
+    return;
+  }
+
+  // ── Vincular Telegram ──
+  if (interaction.customId === 'modal_vincular') {
+    const tag = interaction.fields.getTextInputValue('vincular_tag').trim().toUpperCase();
+    const code = interaction.fields.getTextInputValue('vincular_codigo').trim().toUpperCase();
+    const guildId = interaction.guildId!;
+
+    if (!tag.startsWith('#')) {
+      await interaction.reply({ embeds: [errorEmbed('Tag inválido', 'El tag debe empezar con #. Ej: #28P8RQUY')], ephemeral: true });
+      return;
+    }
+
+    const pendingCfg = await prisma.botConfig.findUnique({
+      where: { key: `pending_link_${code}` },
+    });
+    if (!pendingCfg) {
+      await interaction.reply({ embeds: [errorEmbed('Código inválido', 'El código no existe o ya fue usado. Verificalo en el grupo de Telegram.')], ephemeral: true });
+      return;
+    }
+
+    const chatId = pendingCfg.value;
+
+    try {
+      const clan = await getClanInfo(tag);
+
+      await prisma.botConfig.upsert({
+        where: { key: `telegram_group_clan_${chatId}` },
+        update: { value: tag },
+        create: { key: `telegram_group_clan_${chatId}`, value: tag },
+      });
+
+      await prisma.botConfig.upsert({
+        where: { key: `clan_tag_${guildId}` },
+        update: { value: tag },
+        create: { key: `clan_tag_${guildId}`, value: tag },
+      });
+
+      await prisma.botConfig.upsert({
+        where: { key: `telegram_chat_${guildId}` },
+        update: { value: chatId },
+        create: { key: `telegram_chat_${guildId}`, value: chatId },
+      });
+
+      await prisma.botConfig.delete({ where: { key: `pending_link_${code}` } });
+
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('✅ Grupo vinculado')
+            .setDescription(`El clan **${clan.name}** (${tag}) fue vinculado al grupo de Telegram.`)
+            .setColor(EMBED_COLOR)
+            .setTimestamp(),
+        ],
+        ephemeral: true,
+      });
+
+      logger.info(`Discord guild ${guildId} linked to Telegram chat ${chatId} -> clan ${tag}`);
+    } catch {
+      await interaction.reply({ embeds: [errorEmbed('Error', `No se encontró el clan "${tag}". Verificá el tag.`)], ephemeral: true });
+    }
+
     return;
   }
 }

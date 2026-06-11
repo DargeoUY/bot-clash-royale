@@ -181,7 +181,7 @@
 <div class="hero">
   <h1>⚔️ Asistente Royale</h1>
   <p class="tagline">Bot de Discord para administración de clanes de Clash Royale</p>
-  <p style="margin-top:10px; color: var(--muted);">Tracking de guerras · Inactividad · WhatsApp · Ranking diario · Puntos</p>
+  <p style="margin-top:10px; color: var(--muted);">Tracking de guerras · Inactividad · WhatsApp · Ranking diario · Puntos · Telegram</p>
   <a href="#setup" class="badge">🚀 Cómo instalar</a>
 </div>
 
@@ -219,8 +219,25 @@
       <h3>🏰 Multi-Servidor</h3>
       <p>Cada guild de Discord tiene su propio clan, canales, roles y configuraciones. Sin mezclar datos.</p>
     </div>
+    <div class="feature">
+      <h3>📲 Telegram</h3>
+      <p>Notificaciones automáticas vía Telegram. Comandos desde el grupo. Bienvenida personalizada con imagen. Vinculación con Discord.</p>
+    </div>
   </div>
 </section>
+
+<!-- ═══ TELEGRAM COMMANDS ═══ -->
+<section>
+  <h2>📲 Comandos de Telegram</h2>
+  <p style="margin-bottom: 15px;">Disponibles en el grupo de Telegram (requiere vincular cuenta con <code>/registrar</code>):</p>
+  <table>
+    <tr><th>Comando</th><th>Descripción</th><th>Cooldown</th></tr>
+    <tr><td>/registrar #TAG</td><td>Vincular cuenta de CR con Telegram</td><td class="cooldown">10s</td></tr>
+    <tr><td>/perfil</td><td>Ver tu perfil de CR</td><td class="cooldown">10s</td></tr>
+    <tr><td>/ranking</td><td>Ranking diario (copas, batallas) + semanal</td><td class="cooldown">10s</td></tr>
+    <tr><td>/clan</td><td>Info del clan desde la API</td><td class="cooldown">10s</td></tr>
+    <tr><td>/help</td><td>Lista de comandos disponibles</td><td>—</td></tr>
+  </table>
 
 <!-- ═══ COMMANDS ═══ -->
 <section>
@@ -249,6 +266,7 @@
     <tr><td>/config umbral-inactividad</td><td>Cambiar días para considerar inactivo</td><td>—</td></tr>
     <tr><td>/setup #TAG</td><td>Vincular servidor a un clan</td><td>—</td></tr>
     <tr><td>/auto-setup</td><td>Crear canales, roles y categoría automáticamente</td><td>—</td></tr>
+    <tr><td>/vincular</td><td>Vincular grupo de Telegram al clan (modal con tag + código)</td><td>—</td></tr>
     <tr><td>/exportar</td><td>Exportar datos del clan a CSV</td><td>—</td></tr>
     <tr><td>/diagnostico</td><td>Testear API, DB y conexiones</td><td class="cooldown">2 min</td></tr>
   </table>
@@ -434,6 +452,15 @@ docker compose up -d</code></pre>
     <div class="step">
       <strong>En Discord:</strong><br>
       <code>/auto-setup #CLAN_TAG</code>
+    </div>
+    <div class="step">
+      <strong>Para Telegram (opcional):</strong><br>
+      Agregá el bot a tu grupo con el link que te da <code>/auto-setup</code>. El bot te dará un código.<br>
+      Después: <code>/vincular</code> → completá el tag del clan y el código.
+    </div>
+    <div class="step">
+      <strong>Configurar en el <code>.env</code>:</strong><br>
+      <code>TELEGRAM_BOT_TOKEN=</code> (token de @BotFather). Un solo bot para todos los clanes.
     </div>
   </div>
 </section>

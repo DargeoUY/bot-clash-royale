@@ -20,6 +20,7 @@ const envSchema = z.object({
   HEALTHCHECK_PORT: z.coerce.number().int().default(3000),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
   NODE_ENV: z.enum(['development', 'production']).default('development'),
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

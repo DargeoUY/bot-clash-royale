@@ -1,33 +1,34 @@
+import { config } from '../config';
 import logger from '../config/logger';
 import prisma from '../database/prisma';
 
-let botToken: string | null = null;
 let chatId: string | null = null;
 
-export function configureTelegram(token: string, chat: string): void {
-  botToken = token;
+export function configureTelegram(chat: string): void {
   chatId = chat;
   logger.info(`Telegram configured: chat=${chat}`);
 }
 
 export async function loadTelegramConfig(guildId: string): Promise<void> {
-  const tokenCfg = await prisma.botConfig.findUnique({
-    where: { key: `telegram_token_${guildId}` },
-  });
   const chatCfg = await prisma.botConfig.findUnique({
     where: { key: `telegram_chat_${guildId}` },
   });
-  if (tokenCfg && chatCfg) {
-    configureTelegram(tokenCfg.value, chatCfg.value);
+  if (chatCfg) {
+    configureTelegram(chatCfg.value);
   }
 }
 
 export function isTelegramConfigured(): boolean {
-  return !!(botToken && chatId);
+  return !!(config.TELEGRAM_BOT_TOKEN && chatId);
+}
+
+export function getTelegramToken(): string | undefined {
+  return config.TELEGRAM_BOT_TOKEN;
 }
 
 export async function sendTelegramMessage(text: string): Promise<{ ok: boolean; error?: string }> {
-  if (!botToken || !chatId) return { ok: false, error: 'No configurado' };
+  const token = config.TELEGRAM_BOT_TOKEN;
+  if (!token || !chatId) return { ok: false, error: 'No configurado' };
 
   try {
     const params = new URLSearchParams({
@@ -37,7 +38,7 @@ export async function sendTelegramMessage(text: string): Promise<{ ok: boolean; 
       disable_web_page_preview: 'true',
     });
 
-    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
     const resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

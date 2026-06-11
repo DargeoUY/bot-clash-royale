@@ -1,4 +1,5 @@
 import prisma from '../database/prisma';
+import { config } from '../config';
 import logger from '../config/logger';
 
 let polling = false;
@@ -13,6 +14,10 @@ interface TgUpdate {
     text?: string;
     new_chat_members?: { id: number; first_name: string; is_bot?: boolean }[];
     from?: { id: number; first_name: string; is_bot?: boolean };
+  };
+  my_chat_member?: {
+    chat: { id: number; type: string; title?: string };
+    new_chat_member: { status: string };
   };
 }
 
@@ -68,10 +73,8 @@ async function buildWelcomeMessage(): Promise<string> {
 
 async function sendText(chatId: number, text: string, replyTo?: number): Promise<void> {
   try {
-    const tokenCfg = await prisma.botConfig.findFirst({
-      where: { key: { startsWith: 'telegram_token_' } },
-    });
-    if (!tokenCfg?.value) return;
+    const token = config.TELEGRAM_BOT_TOKEN;
+    if (!token) return;
 
     const params = new URLSearchParams({
       chat_id: String(chatId),
@@ -81,7 +84,7 @@ async function sendText(chatId: number, text: string, replyTo?: number): Promise
     });
     if (replyTo) params.set('reply_to_message_id', String(replyTo));
 
-    await fetch(`https://api.telegram.org/bot${tokenCfg.value}/sendMessage`, {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params.toString(),
@@ -93,10 +96,8 @@ async function sendText(chatId: number, text: string, replyTo?: number): Promise
 
 async function sendPhoto(chatId: number, photoUrl: string, caption: string): Promise<void> {
   try {
-    const tokenCfg = await prisma.botConfig.findFirst({
-      where: { key: { startsWith: 'telegram_token_' } },
-    });
-    if (!tokenCfg?.value) return;
+    const token = config.TELEGRAM_BOT_TOKEN;
+    if (!token) return;
 
     const params = new URLSearchParams({
       chat_id: String(chatId),
@@ -105,7 +106,7 @@ async function sendPhoto(chatId: number, photoUrl: string, caption: string): Pro
       parse_mode: 'HTML',
     });
 
-    await fetch(`https://api.telegram.org/bot${tokenCfg.value}/sendPhoto`, {
+    await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params.toString(),
@@ -134,6 +135,38 @@ async function pollUpdates(token: string): Promise<void> {
 
     for (const update of data.result) {
       lastUpdateId = update.update_id;
+
+      // Bot added to a new group → generate link code
+      if (update.my_chat_member) {
+        const mcm = update.my_chat_member;
+        const isGroup = mcm.chat.type === 'group' || mcm.chat.type === 'supergroup';
+        if (isGroup && mcm.new_chat_member.status === 'member') {
+          const groupChatId = mcm.chat.id;
+
+          const alreadyLinked = await prisma.botConfig.findUnique({
+            where: { key: `telegram_group_clan_${groupChatId}` },
+          });
+          if (!alreadyLinked) {
+            const existingPending = await prisma.botConfig.findFirst({
+              where: { key: { startsWith: 'pending_link_' }, value: String(groupChatId) },
+            });
+            if (!existingPending) {
+              const code = Math.random().toString(36).substring(2, 6).toUpperCase();
+              await prisma.botConfig.create({
+                data: { key: `pending_link_${code}`, value: String(groupChatId) },
+              });
+              await sendText(groupChatId,
+                `🔗 <b>Vinculá este grupo con tu clan</b>\n\n` +
+                `Código: <code>${code}</code>\n\n` +
+                `En Discord usá <b>/vincular</b> y completá el formulario con tu clan tag y este código.`
+              );
+              logger.info(`Pending link code ${code} created for chat ${groupChatId} (${mcm.chat.title || 'group'})`);
+            }
+          }
+        }
+        continue;
+      }
+
       const msg = update.message;
       if (!msg) continue;
 
@@ -173,14 +206,14 @@ export function startTelegramWelcome(): void {
   logger.info('Telegram polling started (every 5s)');
   intervalId = setInterval(async () => {
     try {
-      const tokenCfg = await prisma.botConfig.findFirst({
-        where: { key: { startsWith: 'telegram_token_' } },
-      });
+      const token = config.TELEGRAM_BOT_TOKEN;
+      if (!token) return;
+
       const chatCfg = await prisma.botConfig.findFirst({
         where: { key: { startsWith: 'telegram_chat_' } },
       });
-      if (tokenCfg?.value && chatCfg?.value) {
-        await pollUpdates(tokenCfg.value);
+      if (token && chatCfg) {
+        await pollUpdates(token);
       }
     } catch (err) {
       logger.debug(`Telegram poll loop error: ${(err as Error).message}`);
