@@ -35,6 +35,8 @@ async function maybeSendInactivityTelegram(guildId: string, results: { playerNam
     create: { key, value: String(now) },
   });
 
+  results.sort((a, b) => b.daysInactive - a.daysInactive);
+
   let msg = '<b>⚠️ Miembros inactivos del clan</b>\n\n';
   for (const r of results) {
     const label = STATUS_LABELS[r.status] || r.status;
