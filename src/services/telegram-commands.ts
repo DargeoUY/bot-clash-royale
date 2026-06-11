@@ -17,6 +17,16 @@ function cleanTag(tag: string): string {
   return tag.startsWith('#') ? tag : `#${tag}`;
 }
 
+async function requireRegistration(userId: number): Promise<string | null> {
+  const player = await prisma.player.findFirst({
+    where: { telegramId: String(userId) },
+  });
+  if (!player) {
+    return '⚠️ No tenés una cuenta vinculada.\nUsá /registrar #TAG primero.';
+  }
+  return null;
+}
+
 function medal(i: number): string {
   return i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`;
 }
@@ -115,19 +125,19 @@ export async function handleTelegramCommand(
       return { text: '⏳ Esperá unos segundos antes de usar otro comando.' };
     }
 
+    const err = await requireRegistration(userId);
+    if (err) return { text: err };
+
     const player = await prisma.player.findFirst({
       where: { telegramId: String(userId) },
     });
-    if (!player) {
-      return { text: '⚠️ No tenés una cuenta vinculada.\nUsá /registrar #TAG primero.' };
-    }
 
-    let msg = `<b>${player.name}</b> (${player.tag})\n`;
-    if (player.role) msg += `Rol: ${player.role}\n`;
-    msg += `Nivel: ${player.expLevel ?? '?'}\n`;
-    msg += `Copas: ${player.trophies ?? '?'}\n`;
-    if (player.lastActiveAt) {
-      const days = Math.floor((Date.now() - player.lastActiveAt.getTime()) / (1000 * 60 * 60 * 24));
+    let msg = `<b>${player!.name}</b> (${player!.tag})\n`;
+    if (player!.role) msg += `Rol: ${player!.role}\n`;
+    msg += `Nivel: ${player!.expLevel ?? '?'}\n`;
+    msg += `Copas: ${player!.trophies ?? '?'}\n`;
+    if (player!.lastActiveAt) {
+      const days = Math.floor((Date.now() - player!.lastActiveAt.getTime()) / (1000 * 60 * 60 * 24));
       msg += `Última actividad: hace ${days} días\n`;
     }
     return { text: msg };
@@ -137,6 +147,9 @@ export async function handleTelegramCommand(
     if (!checkCooldown(userId)) {
       return { text: '⏳ Esperá unos segundos antes de usar otro comando.' };
     }
+
+    const err = await requireRegistration(userId);
+    if (err) return { text: err };
 
     const clanCfg = await prisma.botConfig.findFirst({
       where: { key: { startsWith: 'clan_tag_' } },
@@ -233,6 +246,9 @@ export async function handleTelegramCommand(
     if (!checkCooldown(userId)) {
       return { text: '⏳ Esperá unos segundos antes de usar otro comando.' };
     }
+
+    const err = await requireRegistration(userId);
+    if (err) return { text: err };
 
     const clanCfg = await prisma.botConfig.findFirst({
       where: { key: { startsWith: 'clan_tag_' } },
