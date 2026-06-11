@@ -33,6 +33,7 @@ model Player {
   trophies      Int?
   clanTag       String?
   discordId     String?
+  telegramId    String?   @unique
   isRegistered  Boolean   @default(false)
   phone         String?
   status        String    @default("active") // active, left

@@ -1,4 +1,5 @@
 import { sendTelegramMessage } from '../services/telegram.service';
+import { handleTelegramCommand } from '../services/telegram-commands';
 import prisma from '../database/prisma';
 import logger from '../config/logger';
 
@@ -9,39 +10,44 @@ let lastUpdateId = 0;
 interface TgUpdate {
   update_id: number;
   message?: {
+    message_id: number;
     chat: { id: number; type: string };
+    text?: string;
     new_chat_members?: { id: number; first_name: string; is_bot?: boolean }[];
+    from?: { id: number; first_name: string; is_bot?: boolean };
   };
 }
 
-async function buildWelcomeMessage(clanTag: string): Promise<string> {
+async function buildWelcomeMessage(): Promise<string> {
   let msg = '<b>¡Bienvenido a UruguayConQueso! 🧀</b>\n\n';
   msg += 'Este es el canal de notificaciones del clan. Recibirás:\n';
   msg += '• Ranking diario de copas y donaciones\n';
   msg += '• Lista de inactivos cada 3 días\n';
   msg += '• Ganadores semanales y mensuales\n\n';
 
-  msg += '<b>Comandos disponibles en Discord:</b>\n';
-  msg += '/perfil | /clan | /guerra | /ranking | /inactivos\n';
-  msg += '/torneo | /whatsapp | /ausencia | /puntos\n\n';
+  msg += '<b>Comandos disponibles:</b>\n';
+  msg += '/registrar #TAG — Vincula tu cuenta (obligatorio)\n';
+  msg += '/perfil — Ver tu perfil\n';
+  msg += '/clan — Info del clan\n';
+  msg += '/help — Ayuda\n\n';
 
   const [clan, whatsappCfg] = await Promise.all([
-    prisma.clan.findUnique({ where: { tag: clanTag } }),
+    prisma.clan.findFirst(),
     prisma.botConfig.findFirst({
       where: { key: { startsWith: 'channel_whatsapp_' }, value: { not: '' } },
     }),
   ]);
 
   if (clan) {
-    msg += `<b>${clan.name || clanTag}</b> — ${clan.memberCount ?? '?'}/50 miembros\n`;
+    msg += `<b>${clan.name}</b> — ${clan.memberCount ?? '?'}/50 miembros\n`;
     if (clan.level) msg += `Nivel: ${clan.level}\n`;
   }
 
   if (whatsappCfg) {
-    msg += `\n📱 <b>Grupo de WhatsApp:</b> ${whatsappCfg.value}\n`;
+    msg += `\n📱 <b>WhatsApp:</b> ${whatsappCfg.value}\n`;
   }
 
-  msg += '\n<i>Este mensaje es automático. Para interactuar usá Discord.</i>';
+  msg += '\n<i>Este mensaje es automático.</i>';
   return msg;
 }
 
@@ -55,22 +61,46 @@ async function pollUpdates(token: string): Promise<void> {
 
     for (const update of data.result) {
       lastUpdateId = update.update_id;
+      const msg = update.message;
+      if (!msg) continue;
 
-      const members = update.message?.new_chat_members;
-      if (!members) continue;
+      const chatId = msg.chat.id;
+      const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
 
-      for (const member of members) {
-        if (member.is_bot) continue;
+      if (msg.new_chat_members) {
+        for (const member of msg.new_chat_members) {
+          if (member.is_bot) continue;
+          const welcomeText = await buildWelcomeMessage();
+          await sendTelegramMessage(welcomeText);
+          logger.info(`Telegram welcome sent to ${member.first_name}`);
+          break;
+        }
+      }
 
-        const clanCfg = await prisma.botConfig.findFirst({
-          where: { key: { startsWith: 'clan_tag_' } },
-        });
-        const clanTag = clanCfg?.value || '#28P8RQUY';
-        const welcomeText = await buildWelcomeMessage(clanTag);
+      if (msg.text && msg.from && !msg.from.is_bot) {
+        const text = msg.text.trim();
+        if (text.startsWith('/')) {
+          const reply = await handleTelegramCommand(chatId, msg.from.id, text, isGroup);
+          if (reply) {
+            const params = new URLSearchParams({
+              chat_id: String(chatId),
+              text: reply,
+              parse_mode: 'HTML',
+              reply_to_message_id: String(msg.message_id),
+            });
 
-        await sendTelegramMessage(welcomeText);
-        logger.info(`Telegram welcome sent to ${member.first_name}`);
-        break;
+            const tokenCfg = await prisma.botConfig.findFirst({
+              where: { key: { startsWith: 'telegram_token_' } },
+            });
+            if (tokenCfg?.value) {
+              await fetch(`https://api.telegram.org/bot${tokenCfg.value}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: params.toString(),
+              });
+            }
+          }
+        }
       }
     }
   } catch (err) {
@@ -81,7 +111,7 @@ async function pollUpdates(token: string): Promise<void> {
 export function startTelegramWelcome(): void {
   if (polling) return;
   polling = true;
-  logger.info('Telegram welcome polling started (every 5s)');
+  logger.info('Telegram polling started (every 5s)');
   intervalId = setInterval(async () => {
     try {
       const tokenCfg = await prisma.botConfig.findFirst({
@@ -94,7 +124,7 @@ export function startTelegramWelcome(): void {
         await pollUpdates(tokenCfg.value);
       }
     } catch (err) {
-      logger.debug(`Telegram welcome loop error: ${(err as Error).message}`);
+      logger.debug(`Telegram poll loop error: ${(err as Error).message}`);
     }
   }, 5000);
 }

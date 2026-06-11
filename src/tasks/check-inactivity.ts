@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { client } from '../bot';
 import { checkInactivity } from '../services/inactivity.service';
-import { notifyInactivePlayer, notifyInactivityChannel } from '../services/notification.service';
+import { notifyInactivePlayer, notifyInactivityChannel, STATUS_LABELS } from '../services/notification.service';
 import { processExpiredVacations } from '../services/vacation.service';
 import { getAllClanConfigs } from '../utils/guild';
 import { sendTelegramMessage } from '../services/telegram.service';
@@ -9,12 +9,6 @@ import prisma from '../database/prisma';
 import logger from '../config/logger';
 
 let task: cron.ScheduledTask | null = null;
-
-const STATUS_LABELS: Record<string, string> = {
-  warning: '⚠️ Advertencia',
-  inactive: '🔴 Inactivo',
-  kick_suggested: '⛔ Expulsión sugerida',
-};
 
 async function maybeSendInactivityTelegram(guildId: string, results: { playerName: string; daysInactive: number; status: string }[]): Promise<void> {
   if (results.length === 0) return;

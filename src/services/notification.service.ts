@@ -4,11 +4,61 @@ import { InactivityCheck } from './inactivity.service';
 import { EMBED_COLOR, EMBED_ERROR_COLOR } from '../utils/embeds';
 import logger from '../config/logger';
 
+export const STATUS_LABELS: Record<string, string> = {
+  warning: '⚠️ Advertencia',
+  inactive: '🔴 Inactivo',
+  kick_suggested: '⛔ Expulsión sugerida',
+};
+
+async function sendTelegramDM(telegramId: string, playerName: string, daysInactive: number, status: string): Promise<void> {
+  try {
+    const tokenCfg = await prisma.botConfig.findFirst({
+      where: { key: { startsWith: 'telegram_token_' } },
+    });
+    if (!tokenCfg?.value) return;
+
+    const label = STATUS_LABELS[status] || status;
+    let text = `<b>Aviso de Inactividad</b>\n\n`;
+    text += `${label}\n`;
+    text += `Hace <b>${daysInactive}</b> días que no registrás actividad en el clan.\n`;
+    text += `Jugador: <b>${playerName}</b>\n\n`;
+    text += '<i>Usá /ausencia en Discord si vas a estar fuera.</i>';
+
+    const params = new URLSearchParams({
+      chat_id: telegramId,
+      text,
+      parse_mode: 'HTML',
+    });
+
+    const url = `https://api.telegram.org/bot${tokenCfg.value}/sendMessage`;
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    });
+
+    logger.info(`Telegram DM sent to ${playerName} (${daysInactive}d inactive)`);
+  } catch (err) {
+    logger.debug(`Telegram DM failed for ${playerName}: ${(err as Error).message}`);
+  }
+}
+
 export async function notifyInactivePlayer(
   client: Client,
   player: InactivityCheck,
 ): Promise<void> {
-  if (!player.discordId || !player.shouldNotify) return;
+  if (!player.shouldNotify) return;
+
+  const dbPlayer = await prisma.player.findUnique({
+    where: { tag: player.playerTag },
+    select: { discordId: true, telegramId: true },
+  });
+
+  if (dbPlayer?.telegramId) {
+    await sendTelegramDM(dbPlayer.telegramId, player.playerName, player.daysInactive, player.status);
+  }
+
+  if (!player.discordId) return;
 
   try {
     const user = await client.users.fetch(player.discordId);
@@ -31,12 +81,6 @@ export async function notifyInactivePlayer(
     logger.warn(`Could not DM ${player.playerName}: ${(error as Error).message}`);
   }
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  warning: '⚠️ Advertencia',
-  inactive: '🔴 Inactivo',
-  kick_suggested: '⛔ Expulsión sugerida',
-};
 
 export async function notifyInactivityChannel(
   client: Client,
