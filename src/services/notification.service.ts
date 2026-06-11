@@ -32,6 +32,12 @@ export async function notifyInactivePlayer(
   }
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  warning: '⚠️ Advertencia',
+  inactive: '🔴 Inactivo',
+  kick_suggested: '⛔ Expulsión sugerida',
+};
+
 export async function notifyInactivityChannel(
   client: Client,
   guildId: string,
@@ -54,7 +60,7 @@ export async function notifyInactivityChannel(
         .setColor(player.status === 'kick_suggested' ? EMBED_ERROR_COLOR : EMBED_COLOR)
         .addFields(
           { name: 'Días inactivo', value: `${player.daysInactive}`, inline: true },
-          { name: 'Estado', value: player.status, inline: true },
+          { name: 'Estado', value: STATUS_LABELS[player.status] || player.status, inline: true },
         )
         .setFooter({ text: player.playerTag })
         .setTimestamp();
