@@ -147,19 +147,32 @@ export async function handleTelegramCommand(
 
     let msg = '<b>📊 Ranking del Clan</b>\n\n';
 
-    // Daily deltas (copas del día)
+    // Daily deltas
     try {
       const deltaCfg = await prisma.botConfig.findUnique({
         where: { key: `daily_deltas_${cleanTag(clanTag)}` },
       });
       if (deltaCfg) {
-        const deltas = JSON.parse(deltaCfg.value) as { name: string; trophies: number; wins: number; losses: number; donations: number }[];
+        const deltas = JSON.parse(deltaCfg.value) as { name: string; trophies: number; wins: number; losses: number }[];
+
         const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies).slice(0, 5);
         if (byTrophies.length > 0) {
-          msg += '<b>🏆 Top Copas (hoy)</b>\n';
+          msg += '<b>🏆 Copas (hoy)</b>\n';
           byTrophies.forEach((d, i) => {
             const sign = d.trophies > 0 ? '+' : '';
             msg += `${medal(i)} <b>${d.name}</b> — ${sign}${d.trophies}\n`;
+          });
+          msg += '\n';
+        }
+
+        const byBattles = [...deltas]
+          .map(d => ({ name: d.name, battles: d.wins + d.losses }))
+          .sort((a, b) => b.battles - a.battles)
+          .slice(0, 5);
+        if (byBattles.some(d => d.battles > 0)) {
+          msg += '<b>⚔️ Batallas (hoy)</b>\n';
+          byBattles.forEach((d, i) => {
+            msg += `${medal(i)} <b>${d.name}</b> — ${d.battles} batallas\n`;
           });
           msg += '\n';
         }
@@ -174,11 +187,14 @@ export async function handleTelegramCommand(
       if (accCfg) {
         const acc: AccEntry[] = JSON.parse(accCfg.value);
 
-        const byVotes = [...acc].sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses)).slice(0, 5);
-        if (byVotes.some(e => e.wins + e.losses > 0)) {
-          msg += '<b>⚔️ Más batallas (semana)</b>\n';
-          byVotes.forEach((e, i) => {
-            msg += `${medal(i)} <b>${e.name}</b> — ${e.wins}V / ${e.losses}D\n`;
+        const byBattles = [...acc]
+          .map(e => ({ name: e.name, battles: e.wins + e.losses }))
+          .sort((a, b) => b.battles - a.battles)
+          .slice(0, 5);
+        if (byBattles.some(e => e.battles > 0)) {
+          msg += '<b>⚔️ Batallas (semana)</b>\n';
+          byBattles.forEach((e, i) => {
+            msg += `${medal(i)} <b>${e.name}</b> — ${e.battles} batallas\n`;
           });
           msg += '\n';
         }
