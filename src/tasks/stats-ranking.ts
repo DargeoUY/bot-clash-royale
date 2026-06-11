@@ -79,6 +79,42 @@ async function saveSnapshot(clanTag: string, stats: PlayerStats[]): Promise<void
   });
 }
 
+async function cleanLeftPlayers(clanTag: string, activeTags: Set<string>): Promise<void> {
+  const dbPlayers = await prisma.player.findMany({
+    where: { clanTag, status: 'active' },
+    select: { tag: true, name: true },
+  });
+
+  const now = new Date();
+  for (const p of dbPlayers) {
+    if (activeTags.has(p.tag)) continue;
+
+    logger.info(`Player ${p.name} (${p.tag}) left ${clanTag}, cleaning up...`);
+
+    await prisma.player.update({
+      where: { tag: p.tag },
+      data: { status: 'left', leftAt: now },
+    });
+
+    for (const key of [`stats_snapshot_${clanTag}`, `daily_deltas_${clanTag}`, `weekly_acc_${clanTag}`]) {
+      const cfg = await prisma.botConfig.findUnique({ where: { key } });
+      if (!cfg) continue;
+      try {
+        const data = JSON.parse(cfg.value);
+        let arr: { tag: string }[] = [];
+        if (key.startsWith('stats_snapshot_')) {
+          const parsed = data as { date: string; stats: { tag: string }[] };
+          parsed.stats = parsed.stats.filter(s => s.tag !== p.tag);
+          await prisma.botConfig.update({ where: { key }, data: { value: JSON.stringify(parsed) } });
+        } else if (Array.isArray(data)) {
+          arr = data.filter((e: { tag: string }) => e.tag !== p.tag);
+          await prisma.botConfig.update({ where: { key }, data: { value: JSON.stringify(arr) } });
+        }
+      } catch { /* skip corrupt data */ }
+    }
+  }
+}
+
 export async function publishStatsRanking(
   client: Client,
   clanTag: string,
@@ -112,6 +148,10 @@ export async function publishStatsRanking(
     return;
   }
 
+  // Clean up players who left the clan
+  const activeTags = new Set(current.map(c => c.tag));
+  await cleanLeftPlayers(clanTag, activeTags);
+
   // War stats
   const warStats: WarStats[] = [];
   try {
@@ -123,78 +163,12 @@ export async function publishStatsRanking(
     }
   } catch { /* ok */ }
 
-  // Daily deltas
-  const today = new Date().toISOString().split('T')[0];
+  // Load previous snapshot BEFORE saving new one
   const snapshot = await loadPreviousSnapshot(clanTag);
-  const prev = snapshot?.stats ?? null;
   const isFirstDay = !snapshot;
-  const deltas: DeltaStats[] = [];
-
-  for (const c of current) {
-    const p = prev?.get(c.tag);
-    const dw = p ? c.wins - p.wins : c.wins;
-    const dl = p ? c.losses - p.losses : c.losses;
-    const dd = p ? c.donations - p.donations : c.donations;
-    const dt = p ? c.trophies - p.trophies : c.trophies;
-    const total = dw + dl;
-    const wr = total > 0 ? Math.round((dw / total) * 100) : 0;
-
-    deltas.push({
-      tag: c.tag,
-      name: c.name,
-      wins: dw,
-      losses: dl,
-      winRate: wr,
-      donations: dd,
-      trophies: dt,
-    });
-  }
 
   // Save current as baseline for next day
   await saveSnapshot(clanTag, current);
-
-  // Save daily deltas for Telegram /ranking
-  const deltaKey = `daily_deltas_${clanTag}`;
-  await prisma.botConfig.upsert({
-    where: { key: deltaKey },
-    update: { value: JSON.stringify(deltas) },
-    create: { key: deltaKey, value: JSON.stringify(deltas) },
-  });
-
-  // Add to weekly accumulator
-  const weeklyEntries = deltas.map((d) => ({
-    tag: d.tag,
-    name: d.name,
-    wins: d.wins,
-    losses: d.losses,
-    donations: d.donations,
-    trophies: d.trophies,
-    fame: warStats.find((w) => w.tag === d.tag)?.fame || 0,
-  }));
-  await addToWeeklyAccumulator(clanTag, weeklyEntries);
-
-  // Add to monthly accumulator (copas + fame)
-  const monthlyEntries = deltas.map((d) => ({
-    tag: d.tag,
-    name: d.name,
-    trophies: d.trophies,
-    fame: warStats.find((w) => w.tag === d.tag)?.fame || 0,
-  }));
-  await addToMonthlyAccumulator(clanTag, monthlyEntries);
-
-  // Rankings (daily where possible, otherwise lifetime)
-  const byDailyWR = [...deltas]
-    .filter((d) => d.wins + d.losses > 0)
-    .sort((a, b) => b.winRate - a.winRate || b.wins - a.wins);
-  const byDonations = [...deltas].sort((a, b) => b.donations - a.donations);
-  const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies);
-  const byFame = [...warStats].sort((a, b) => b.fame - a.fame);
-
-  // Totals
-  const totalDailyW = deltas.reduce((s, d) => s + d.wins, 0);
-  const totalDailyL = deltas.reduce((s, d) => s + d.losses, 0);
-  const totalDonations = deltas.reduce((s, d) => s + d.donations, 0);
-  const totalFame = warStats.reduce((s, p) => s + p.fame, 0);
 
   // Save players to DB
   for (const s of current) {
@@ -222,33 +196,98 @@ export async function publishStatsRanking(
     const channel = (await client.channels.fetch(cfg.value)) as TextChannel;
     if (!channel) return;
 
-    const label = isFirstDay
-      ? '📊 Ranking del Clan — Día 1 (sin datos diarios aún)'
-      : '📊 Ranking del Clan — Diario';
-
-    // ── Header ──
-    const header = new EmbedBuilder()
-      .setTitle(label)
-      .setColor(EMBED_COLOR)
-      .setFooter({ text: `Actualizado cada 24h | Errores: ${errors}` })
-      .setTimestamp();
-
     if (isFirstDay) {
-      header.setDescription(
-        `**${members.length}** jugadores sincronizados.\n\n` +
-        `📌 Hoy es el **primer día** de tracking. Se guardó la foto inicial.\n` +
-        `Mañana se mostrarán solo las partidas **de hoy** (delta diario).`
-      );
+      const header = new EmbedBuilder()
+        .setTitle('📊 Ranking del Clan — Día 1 (sin datos diarios aún)')
+        .setColor(EMBED_COLOR)
+        .setDescription(
+          `**${members.length}** jugadores sincronizados.\n\n` +
+          `📌 Hoy es el **primer día** de tracking. Se guardó la foto inicial.\n` +
+          `Mañana se mostrarán solo las partidas **de hoy** (delta diario).`
+        )
+        .setFooter({ text: `Actualizado cada 24h | Errores: ${errors}` })
+        .setTimestamp();
       await channel.send({ embeds: [header] });
+      logger.info(`First day snapshot saved for ${clanTag} (${current.length} players)`);
       return;
     }
 
-    header.setDescription(
-      `**${members.length}** jugadores | ✅ ${totalDailyW}V ❌ ${totalDailyL}D hoy | 💎 ${totalDonations.toLocaleString()} donaciones`
-    );
+    const prev = snapshot!.stats;
+    const deltas: DeltaStats[] = [];
+
+    for (const c of current) {
+      const p = prev?.get(c.tag);
+      const dw = p ? c.wins - p.wins : c.wins;
+      const dl = p ? c.losses - p.losses : c.losses;
+      const dd = p ? c.donations - p.donations : c.donations;
+      const dt = p ? c.trophies - p.trophies : c.trophies;
+      const total = dw + dl;
+      const wr = total > 0 ? Math.round((dw / total) * 100) : 0;
+
+      deltas.push({
+        tag: c.tag,
+        name: c.name,
+        wins: dw,
+        losses: dl,
+        winRate: wr,
+        donations: dd,
+        trophies: dt,
+      });
+    }
+
+    // Save daily deltas for Telegram /ranking
+    const deltaKey = `daily_deltas_${clanTag}`;
+    await prisma.botConfig.upsert({
+      where: { key: deltaKey },
+      update: { value: JSON.stringify(deltas) },
+      create: { key: deltaKey, value: JSON.stringify(deltas) },
+    });
+
+    // Add to weekly accumulator
+    const weeklyEntries = deltas.map((d) => ({
+      tag: d.tag,
+      name: d.name,
+      wins: d.wins,
+      losses: d.losses,
+      donations: d.donations,
+      trophies: d.trophies,
+      fame: warStats.find((w) => w.tag === d.tag)?.fame || 0,
+    }));
+    await addToWeeklyAccumulator(clanTag, weeklyEntries);
+
+    // Add to monthly accumulator
+    const monthlyEntries = deltas.map((d) => ({
+      tag: d.tag,
+      name: d.name,
+      trophies: d.trophies,
+      fame: warStats.find((w) => w.tag === d.tag)?.fame || 0,
+    }));
+    await addToMonthlyAccumulator(clanTag, monthlyEntries);
+
+    // Rankings
+    const byDailyWR = [...deltas]
+      .filter((d) => d.wins + d.losses > 0)
+      .sort((a, b) => b.winRate - a.winRate || b.wins - a.wins);
+    const byDonations = [...deltas].sort((a, b) => b.donations - a.donations);
+    const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies);
+    const byFame = [...warStats].sort((a, b) => b.fame - a.fame);
+
+    const totalDailyW = deltas.reduce((s, d) => s + d.wins, 0);
+    const totalDailyL = deltas.reduce((s, d) => s + d.losses, 0);
+    const totalDonations = deltas.reduce((s, d) => s + d.donations, 0);
+    const totalFame = warStats.reduce((s, p) => s + p.fame, 0);
+
+    // Publish
+    const header = new EmbedBuilder()
+      .setTitle('📊 Ranking del Clan — Diario')
+      .setColor(EMBED_COLOR)
+      .setDescription(
+        `**${members.length}** jugadores | ✅ ${totalDailyW}V ❌ ${totalDailyL}D hoy | 💎 ${totalDonations.toLocaleString()} donaciones`
+      )
+      .setFooter({ text: `Actualizado cada 24h | Errores: ${errors}` })
+      .setTimestamp();
     await channel.send({ embeds: [header] });
 
-    // ── 1. Victorias / Derrotas ──
     if (byDailyWR.length > 0) {
       const wrLines = byDailyWR.map((d, i) =>
         `**${medal(i)}** **${d.name}**\n᛫ ${d.wins}V / ${d.losses}D — ${d.winRate}% WR`
@@ -264,7 +303,6 @@ export async function publishStatsRanking(
       await channel.send({ embeds: [wr] });
     }
 
-    // ── 2. Donaciones de Cartas ──
     if (byDonations.some((d) => d.donations > 0)) {
       const donLines = byDonations.map((d, i) =>
         `**${medal(i)}** **${d.name}**\n᛫ ${d.donations.toLocaleString()} 💎 donadas`
