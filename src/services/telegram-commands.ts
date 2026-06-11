@@ -147,20 +147,23 @@ export async function handleTelegramCommand(
 
     let msg = '<b>📊 Ranking del Clan</b>\n\n';
 
-    // Daily snapshot
+    // Daily deltas (copas del día)
     try {
-      const snapCfg = await prisma.botConfig.findUnique({
-        where: { key: `stats_snapshot_${cleanTag(clanTag)}` },
+      const deltaCfg = await prisma.botConfig.findUnique({
+        where: { key: `daily_deltas_${cleanTag(clanTag)}` },
       });
-      if (snapCfg) {
-        const data = JSON.parse(snapCfg.value);
-        if (data.stats && Array.isArray(data.stats)) {
-          const byTrophies = [...data.stats].sort((a: { trophies: number }, b: { trophies: number }) => b.trophies - a.trophies).slice(0, 5);
+      if (deltaCfg) {
+        const deltas = JSON.parse(deltaCfg.value) as { name: string; trophies: number; wins: number; losses: number; donations: number }[];
+        const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies).slice(0, 5);
+        if (byTrophies.some(d => d.trophies > 0)) {
           msg += '<b>🏆 Top Copas (hoy)</b>\n';
-          byTrophies.forEach((s: { name: string; trophies: number }, i: number) => {
-            msg += `${medal(i)} <b>${s.name}</b> — ${s.trophies?.toLocaleString() || 0}\n`;
+          byTrophies.forEach((d, i) => {
+            const sign = d.trophies > 0 ? '+' : '';
+            msg += `${medal(i)} <b>${d.name}</b> — ${sign}${d.trophies}\n`;
           });
           msg += '\n';
+        } else {
+          msg += '<b>🏆 Top Copas (hoy)</b>\n<i>Sin cambios todavía.</i>\n\n';
         }
       }
     } catch { /* ok */ }

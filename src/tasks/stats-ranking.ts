@@ -153,6 +153,14 @@ export async function publishStatsRanking(
   // Save current as baseline for next day
   await saveSnapshot(clanTag, current);
 
+  // Save daily deltas for Telegram /ranking
+  const deltaKey = `daily_deltas_${clanTag}`;
+  await prisma.botConfig.upsert({
+    where: { key: deltaKey },
+    update: { value: JSON.stringify(deltas) },
+    create: { key: deltaKey, value: JSON.stringify(deltas) },
+  });
+
   // Add to weekly accumulator
   const weeklyEntries = deltas.map((d) => ({
     tag: d.tag,
