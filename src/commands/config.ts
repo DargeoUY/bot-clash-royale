@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import { BotCommand } from '../types';
 import { errorEmbed, createEmbed } from '../utils/embeds';
 import prisma from '../database/prisma';
@@ -164,6 +164,36 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
     return;
   }
 
+  if (subcommand === 'bienvenida-telegram') {
+    const modal = new ModalBuilder()
+      .setCustomId('modal_bienvenida_tg')
+      .setTitle('Editar mensaje de bienvenida Telegram');
+
+    const textoInput = new TextInputBuilder()
+      .setCustomId('bienvenida_texto')
+      .setLabel('Mensaje de bienvenida')
+      .setStyle(TextInputStyle.Paragraph)
+      .setPlaceholder('¡Bienvenido al clan! Acá recibirás notificaciones...')
+      .setMaxLength(1000)
+      .setRequired(true);
+
+    const imagenInput = new TextInputBuilder()
+      .setCustomId('bienvenida_imagen')
+      .setLabel('URL de imagen (opcional)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('https://i.imgur.com/ejemplo.png')
+      .setMaxLength(500)
+      .setRequired(false);
+
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(textoInput),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(imagenInput),
+    );
+
+    await interaction.showModal(modal);
+    return;
+  }
+
   await interaction.reply({
     embeds: [errorEmbed('Subcomando', 'Subcomando no reconocido.')],
     ephemeral: true,
@@ -262,6 +292,11 @@ export const botConfig: BotCommand = {
         .addStringOption((opt) =>
           opt.setName('chat_id').setDescription('ID del grupo o canal').setRequired(true),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('bienvenida-telegram')
+        .setDescription('Editar el mensaje de bienvenida que reciben los nuevos en Telegram'),
     ),
   execute,
   adminOnly: true,

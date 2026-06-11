@@ -107,6 +107,42 @@ async function handleModal(interaction: ModalSubmitInteraction): Promise<void> {
     await handleTorneoModal(interaction);
     return;
   }
+
+  // ── Bienvenida Telegram ──
+  if (interaction.customId === 'modal_bienvenida_tg') {
+    const texto = interaction.fields.getTextInputValue('bienvenida_texto').trim();
+    const imagen = interaction.fields.getTextInputValue('bienvenida_imagen').trim() || null;
+    const guildId = interaction.guildId!;
+
+    await prisma.botConfig.upsert({
+      where: { key: `telegram_welcome_text_${guildId}` },
+      update: { value: texto },
+      create: { key: `telegram_welcome_text_${guildId}`, value: texto },
+    });
+
+    if (imagen) {
+      await prisma.botConfig.upsert({
+        where: { key: `telegram_welcome_image_${guildId}` },
+        update: { value: imagen },
+        create: { key: `telegram_welcome_image_${guildId}`, value: imagen },
+      });
+    }
+
+    await interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle('✅ Bienvenida actualizada')
+          .setDescription('El mensaje de bienvenida de Telegram fue actualizado.')
+          .addFields(
+            { name: 'Previsualización', value: texto.length > 500 ? texto.slice(0, 497) + '...' : texto || '(vacío)' },
+            ...(imagen ? [{ name: 'Imagen', value: imagen }] : []),
+          )
+          .setColor(EMBED_COLOR),
+      ],
+      ephemeral: true,
+    });
+    return;
+  }
 }
 
 export async function handleInteraction(interaction: Interaction): Promise<void> {

@@ -1,5 +1,3 @@
-import { sendTelegramMessage } from '../services/telegram.service';
-import { handleTelegramCommand } from '../services/telegram-commands';
 import prisma from '../database/prisma';
 import logger from '../config/logger';
 
@@ -18,18 +16,35 @@ interface TgUpdate {
   };
 }
 
-async function buildWelcomeMessage(): Promise<string> {
-  let msg = '<b>¡Bienvenido a UruguayConQueso! 🧀</b>\n\n';
-  msg += 'Este es el canal de notificaciones del clan. Recibirás:\n';
-  msg += '• Ranking diario de copas y donaciones\n';
-  msg += '• Lista de inactivos cada 3 días\n';
-  msg += '• Ganadores semanales y mensuales\n\n';
+const DEFAULT_WELCOME = `<b>¡Bienvenido a UruguayConQueso! 🧀</b>
 
-  msg += '<b>Comandos disponibles:</b>\n';
-  msg += '/registrar #TAG — Vincula tu cuenta (obligatorio)\n';
-  msg += '/perfil — Ver tu perfil\n';
-  msg += '/clan — Info del clan\n';
-  msg += '/help — Ayuda\n\n';
+Este es el canal de notificaciones del clan. Recibirás:
+• Ranking diario de copas y donaciones
+• Lista de inactivos cada 3 días
+• Ganadores semanales y mensuales
+
+<b>Comandos disponibles:</b>
+/registrar #TAG — Vincula tu cuenta (obligatorio)
+/perfil — Ver tu perfil
+/clan — Info del clan
+/help — Ayuda
+
+<i>Este mensaje es automático.</i>`;
+
+let welcomeText: string | null = null;
+let welcomeImage: string | null = null;
+
+async function loadWelcomeConfig(): Promise<void> {
+  const [textCfg, imgCfg] = await Promise.all([
+    prisma.botConfig.findFirst({ where: { key: { startsWith: 'telegram_welcome_text_' } } }),
+    prisma.botConfig.findFirst({ where: { key: { startsWith: 'telegram_welcome_image_' } } }),
+  ]);
+  welcomeText = textCfg?.value || null;
+  welcomeImage = imgCfg?.value || null;
+}
+
+async function buildWelcomeMessage(): Promise<string> {
+  let msg = welcomeText || DEFAULT_WELCOME;
 
   const [clan, whatsappCfg] = await Promise.all([
     prisma.clan.findFirst(),
@@ -38,17 +53,75 @@ async function buildWelcomeMessage(): Promise<string> {
     }),
   ]);
 
+  let extra = '';
   if (clan) {
-    msg += `<b>${clan.name}</b> — ${clan.memberCount ?? '?'}/50 miembros\n`;
-    if (clan.level) msg += `Nivel: ${clan.level}\n`;
+    extra += `\n\n<b>${clan.name}</b> — ${clan.memberCount ?? '?'}/50 miembros`;
+    if (clan.level) extra += ` | Nivel ${clan.level}`;
   }
-
   if (whatsappCfg) {
-    msg += `\n📱 <b>WhatsApp:</b> ${whatsappCfg.value}\n`;
+    extra += `\n📱 <b>WhatsApp:</b> ${whatsappCfg.value}`;
   }
 
-  msg += '\n<i>Este mensaje es automático.</i>';
+  msg += extra;
   return msg;
+}
+
+async function sendText(chatId: number, text: string, replyTo?: number): Promise<void> {
+  try {
+    const tokenCfg = await prisma.botConfig.findFirst({
+      where: { key: { startsWith: 'telegram_token_' } },
+    });
+    if (!tokenCfg?.value) return;
+
+    const params = new URLSearchParams({
+      chat_id: String(chatId),
+      text,
+      parse_mode: 'HTML',
+      disable_web_page_preview: 'true',
+    });
+    if (replyTo) params.set('reply_to_message_id', String(replyTo));
+
+    await fetch(`https://api.telegram.org/bot${tokenCfg.value}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    });
+  } catch (err) {
+    logger.debug(`Telegram sendText error: ${(err as Error).message}`);
+  }
+}
+
+async function sendPhoto(chatId: number, photoUrl: string, caption: string): Promise<void> {
+  try {
+    const tokenCfg = await prisma.botConfig.findFirst({
+      where: { key: { startsWith: 'telegram_token_' } },
+    });
+    if (!tokenCfg?.value) return;
+
+    const params = new URLSearchParams({
+      chat_id: String(chatId),
+      photo: photoUrl,
+      caption,
+      parse_mode: 'HTML',
+    });
+
+    await fetch(`https://api.telegram.org/bot${tokenCfg.value}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    });
+  } catch (err) {
+    logger.debug(`Telegram sendPhoto error: ${(err as Error).message}`);
+  }
+}
+
+async function sendWelcome(chatId: number): Promise<void> {
+  const text = await buildWelcomeMessage();
+  if (welcomeImage) {
+    await sendPhoto(chatId, welcomeImage, text);
+  } else {
+    await sendText(chatId, text);
+  }
 }
 
 async function pollUpdates(token: string): Promise<void> {
@@ -64,42 +137,21 @@ async function pollUpdates(token: string): Promise<void> {
       const msg = update.message;
       if (!msg) continue;
 
-      const chatId = msg.chat.id;
-      const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
-
       if (msg.new_chat_members) {
         for (const member of msg.new_chat_members) {
           if (member.is_bot) continue;
-          const welcomeText = await buildWelcomeMessage();
-          await sendTelegramMessage(welcomeText);
+          await sendWelcome(msg.chat.id);
           logger.info(`Telegram welcome sent to ${member.first_name}`);
           break;
         }
       }
 
-      if (msg.text && msg.from && !msg.from.is_bot) {
-        const text = msg.text.trim();
-        if (text.startsWith('/')) {
-          const reply = await handleTelegramCommand(chatId, msg.from.id, text, isGroup);
-          if (reply) {
-            const params = new URLSearchParams({
-              chat_id: String(chatId),
-              text: reply,
-              parse_mode: 'HTML',
-              reply_to_message_id: String(msg.message_id),
-            });
-
-            const tokenCfg = await prisma.botConfig.findFirst({
-              where: { key: { startsWith: 'telegram_token_' } },
-            });
-            if (tokenCfg?.value) {
-              await fetch(`https://api.telegram.org/bot${tokenCfg.value}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: params.toString(),
-              });
-            }
-          }
+      if (msg.text && msg.from && !msg.from.is_bot && msg.text.trim().startsWith('/')) {
+        const { handleTelegramCommand } = await import('../services/telegram-commands');
+        const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
+        const reply = await handleTelegramCommand(msg.chat.id, msg.from.id, msg.text.trim(), isGroup);
+        if (reply) {
+          await sendText(msg.chat.id, reply, msg.message_id);
         }
       }
     }
@@ -111,6 +163,10 @@ async function pollUpdates(token: string): Promise<void> {
 export function startTelegramWelcome(): void {
   if (polling) return;
   polling = true;
+
+  loadWelcomeConfig();
+  setInterval(loadWelcomeConfig, 5 * 60 * 1000);
+
   logger.info('Telegram polling started (every 5s)');
   intervalId = setInterval(async () => {
     try {
