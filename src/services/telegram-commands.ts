@@ -31,7 +31,12 @@ async function getClanForChat(chatId: number): Promise<string> {
   const cfg = await prisma.botConfig.findUnique({
     where: { key: `telegram_group_clan_${chatId}` },
   });
-  return cfg?.value || '#28P8RQUY';
+  if (cfg) return cfg.value;
+
+  const clanCfg = await prisma.botConfig.findFirst({
+    where: { key: { startsWith: 'clan_tag_' } },
+  });
+  return clanCfg?.value || '#28P8RQUY';
 }
 
 function medal(i: number): string {
