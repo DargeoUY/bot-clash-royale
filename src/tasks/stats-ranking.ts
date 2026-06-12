@@ -389,46 +389,59 @@ export async function publishStatsRanking(
       return items.slice(0, limit).map((item, i) => fmt(item, i)).join('\n');
     }
 
-    // ── Single Embed ──
-    const embed = new EmbedBuilder()
+    // ── Header ──
+    const header = new EmbedBuilder()
       .setTitle(`📊 Ranking Diario — ${yesterdayLabel}`)
       .setColor(EMBED_COLOR)
+      .setDescription(`**${members.length}** jugadores | ✅ ${totalDailyW}V ❌ ${totalDailyL}D | 💎 ${totalDonations.toLocaleString()} donaciones | ⚡ ${totalFame.toLocaleString()} fama`)
       .setFooter({ text: `Midnight → Midnight | Errores: ${errors}` })
       .setTimestamp();
+    await channel.send({ embeds: [header] });
 
-    let desc = `**${members.length}** jugadores | ✅ ${totalDailyW}V ❌ ${totalDailyL}D | 💎 ${totalDonations.toLocaleString()} donaciones | ⚡ ${totalFame.toLocaleString()} fama\n`;
+    // ── Copas ──
+    if (byTrophies.length > 0) {
+      const embed = new EmbedBuilder()
+        .setTitle('--- Top Diario Copas ---')
+        .setColor(0xFFD700)
+        .setDescription(byTrophies.slice(0, 5).map((d, i) => {
+          const sign = d.trophies > 0 ? '+' : '';
+          return `${medal(i)} **${d.name}** — ${sign}${d.trophies}`;
+        }).join('\n') || '_Sin datos_');
+      await channel.send({ embeds: [embed] });
+    }
 
-    // Copas
-    desc += `\n**--- Top Diario Copas ---**\n`;
-    desc += formatList(byTrophies, (d: unknown, i: number) => {
-      const dd = d as { name: string; trophies: number };
-      const sign = dd.trophies > 0 ? '+' : '';
-      return `${medal(i)} **${dd.name}** — ${sign}${dd.trophies}`;
-    });
+    // ── Batallas ──
+    if (byBattles.length > 0) {
+      const embed = new EmbedBuilder()
+        .setTitle('--- Top Diario Batallas ---')
+        .setColor(0xE74C3C)
+        .setDescription(byBattles.slice(0, 5).map((d, i) =>
+          `${medal(i)} **${d.name}** — ${d.wins + d.losses} batallas (${d.wins}V/${d.losses}D)`
+        ).join('\n') || '_Sin datos_');
+      await channel.send({ embeds: [embed] });
+    }
 
-    // Batallas
-    desc += `\n\n**--- Top Diario Batallas ---**\n`;
-    desc += formatList(byBattles, (d: unknown, i: number) => {
-      const dd = d as { name: string; wins: number; losses: number };
-      return `${medal(i)} **${dd.name}** — ${dd.wins + dd.losses} batallas (${dd.wins}V/${dd.losses}D)`;
-    });
+    // ── Donaciones ──
+    if (byDonations.length > 0) {
+      const embed = new EmbedBuilder()
+        .setTitle('--- Top Diario Donaciones ---')
+        .setColor(0xFF69B4)
+        .setDescription(byDonations.slice(0, 5).map((d, i) =>
+          `${medal(i)} **${d.name}** — ${d.donations.toLocaleString()} 💎`
+        ).join('\n') || '_Sin datos_');
+      await channel.send({ embeds: [embed] });
+    }
 
-    // Donaciones
-    desc += `\n\n**--- Top Diario Donaciones ---**\n`;
-    desc += formatList(byDonations, (d: unknown, i: number) => {
-      const dd = d as { name: string; donations: number };
-      return `${medal(i)} **${dd.name}** — ${dd.donations.toLocaleString()} 💎`;
-    });
-
-    // Guerra
-    desc += `\n\n**--- Top Diario Guerra ---**\n`;
-    desc += formatList(byFame, (p: unknown, i: number) => {
-      const pp = p as { name: string; fame: number };
-      return `${medal(i)} **${pp.name}** — ${pp.fame.toLocaleString()} ⚡ fama`;
-    });
-
-    embed.setDescription(desc);
-    await channel.send({ embeds: [embed] });
+    // ── Guerra ──
+    if (byFame.length > 0) {
+      const embed = new EmbedBuilder()
+        .setTitle('--- Top Diario Guerra ---')
+        .setColor(0x9B59B6)
+        .setDescription(byFame.slice(0, 5).map((p, i) =>
+          `${medal(i)} **${p.name}** — ${p.fame.toLocaleString()} ⚡ fama`
+        ).join('\n') || '_Sin datos_');
+      await channel.send({ embeds: [embed] });
+    }
 
     logger.info(`Stats ranking published to ${channel.name} (${current.length} players)`);
   } catch (err) {
@@ -474,41 +487,6 @@ export async function publishWeeklyRanking(
   const totalD = acc.reduce((s, e) => s + e.donations, 0);
   const totalF = acc.reduce((s, e) => s + e.fame, 0);
 
-  const embed = new EmbedBuilder()
-    .setTitle('📊 Ranking Semanal')
-    .setColor(EMBED_COLOR)
-    .setFooter({ text: 'Semana completa' })
-    .setTimestamp();
-
-  let desc = `**${members.length}** jugadores | ✅ ${totalW}V ❌ ${totalL}D | 💎 ${totalD.toLocaleString()} donaciones | ⚡ ${totalF.toLocaleString()} fama\n`;
-
-  desc += `\n**--- Top Semanal Copas ---**\n`;
-  desc += fmtList(byTrophies, (d: unknown, i: number) => {
-    const dd = d as { name: string; trophies: number };
-    const sign = dd.trophies > 0 ? '+' : '';
-    return `${medal(i)} **${dd.name}** — ${sign}${dd.trophies}`;
-  });
-
-  desc += `\n\n**--- Top Semanal Batallas ---**\n`;
-  desc += fmtList(byBattles, (d: unknown, i: number) => {
-    const dd = d as { name: string; wins: number; losses: number };
-    return `${medal(i)} **${dd.name}** — ${dd.wins + dd.losses} batallas (${dd.wins}V/${dd.losses}D)`;
-  });
-
-  desc += `\n\n**--- Top Semanal Donaciones ---**\n`;
-  desc += fmtList(byDonations, (d: unknown, i: number) => {
-    const dd = d as { name: string; donations: number };
-    return `${medal(i)} **${dd.name}** — ${dd.donations.toLocaleString()} 💎`;
-  });
-
-  desc += `\n\n**--- Top Semanal Guerra ---**\n`;
-  desc += fmtList(byFame, (p: unknown, i: number) => {
-    const pp = p as { name: string; fame: number };
-    return `${medal(i)} **${pp.name}** — ${pp.fame.toLocaleString()} ⚡ fama`;
-  });
-
-  embed.setDescription(desc);
-
   const channelKey = `channel_ranking_${guildId}`;
   const cfg = await prisma.botConfig.findUnique({ where: { key: channelKey } });
   if (!cfg) return;
@@ -516,7 +494,61 @@ export async function publishWeeklyRanking(
   try {
     const channel = (await client.channels.fetch(cfg.value)) as TextChannel;
     if (!channel) return;
-    await channel.send({ embeds: [embed] });
+
+    // ── Header ──
+    const header = new EmbedBuilder()
+      .setTitle('📊 Ranking Semanal')
+      .setColor(EMBED_COLOR)
+      .setDescription(`**${members.length}** jugadores | ✅ ${totalW}V ❌ ${totalL}D | 💎 ${totalD.toLocaleString()} donaciones | ⚡ ${totalF.toLocaleString()} fama`)
+      .setFooter({ text: 'Semana completa' })
+      .setTimestamp();
+    await channel.send({ embeds: [header] });
+
+    // ── Copas ──
+    if (byTrophies.length > 0) {
+      const embed = new EmbedBuilder()
+        .setTitle('--- Top Semanal Copas ---')
+        .setColor(0xFFD700)
+        .setDescription(byTrophies.slice(0, 5).map((d, i) => {
+          const sign = d.trophies > 0 ? '+' : '';
+          return `${medal(i)} **${d.name}** — ${sign}${d.trophies}`;
+        }).join('\n'));
+      await channel.send({ embeds: [embed] });
+    }
+
+    // ── Batallas ──
+    if (byBattles.length > 0) {
+      const embed = new EmbedBuilder()
+        .setTitle('--- Top Semanal Batallas ---')
+        .setColor(0xE74C3C)
+        .setDescription(byBattles.slice(0, 5).map((d, i) =>
+          `${medal(i)} **${d.name}** — ${d.wins + d.losses} batallas (${d.wins}V/${d.losses}D)`
+        ).join('\n'));
+      await channel.send({ embeds: [embed] });
+    }
+
+    // ── Donaciones ──
+    if (byDonations.length > 0) {
+      const embed = new EmbedBuilder()
+        .setTitle('--- Top Semanal Donaciones ---')
+        .setColor(0xFF69B4)
+        .setDescription(byDonations.slice(0, 5).map((d, i) =>
+          `${medal(i)} **${d.name}** — ${d.donations.toLocaleString()} 💎`
+        ).join('\n'));
+      await channel.send({ embeds: [embed] });
+    }
+
+    // ── Guerra ──
+    if (byFame.length > 0) {
+      const embed = new EmbedBuilder()
+        .setTitle('--- Top Semanal Guerra ---')
+        .setColor(0x9B59B6)
+        .setDescription(byFame.slice(0, 5).map((p, i) =>
+          `${medal(i)} **${p.name}** — ${p.fame.toLocaleString()} ⚡ fama`
+        ).join('\n'));
+      await channel.send({ embeds: [embed] });
+    }
+
     logger.info(`Weekly ranking published for ${clanTag}`);
 
     // Reset weekly accumulator after publishing
