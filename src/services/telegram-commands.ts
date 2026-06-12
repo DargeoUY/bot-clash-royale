@@ -63,6 +63,7 @@ export async function handleTelegramCommand(
     msg += '/registrar #TAG — Vincula tu cuenta de Clash Royale\n';
     msg += '/perfil — Ver tu perfil (requiere /registrar)\n';
     msg += '/ranking — Ranking diario y semanal\n';
+    msg += '/rankingn — Ranking completo (solo líderes)\n';
     msg += '/clan — Info del clan\n';
     msg += '/help — Este mensaje';
     return { text: msg };
