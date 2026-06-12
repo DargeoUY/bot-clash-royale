@@ -46,6 +46,7 @@ function medal(i: number): string {
 export interface TgReply {
   text: string;
   privateText?: string;
+  extraMessages?: string[];
 }
 
 export async function handleTelegramCommand(
@@ -161,40 +162,53 @@ export async function handleTelegramCommand(
     if (err) return { text: err };
 
     const clanTag = await getClanForChat(chatId);
-    const cleanClan = cleanTag(clanTag);
 
     interface AccEntry { tag: string; name: string; wins: number; losses: number; donations: number; trophies: number; fame: number; }
 
-    let msg = '<b>📊 Ranking del Clan</b>\n\n';
+    const extra: string[] = [];
+    let header = '<b>📊 Ranking del Clan</b>';
 
     // Daily deltas
     try {
       const deltaCfg = await prisma.botConfig.findUnique({
-        where: { key: `daily_deltas_${cleanClan}` },
+        where: { key: `daily_deltas_${clanTag}` },
       });
       if (deltaCfg) {
-        const deltas = JSON.parse(deltaCfg.value) as { name: string; trophies: number; wins: number; losses: number }[];
+        const deltas = JSON.parse(deltaCfg.value) as { name: string; trophies: number; wins: number; losses: number; donations: number }[];
 
+        // Copas
         const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies).slice(0, 5);
         if (byTrophies.length > 0) {
-          msg += '<b>🏆 Copas (hoy)</b>\n';
+          let m = '<b>--- Top Diario Copas ---</b>\n';
           byTrophies.forEach((d, i) => {
             const sign = d.trophies > 0 ? '+' : '';
-            msg += `${medal(i)} <b>${d.name}</b> — ${sign}${d.trophies}\n`;
+            m += `${medal(i)} <b>${d.name}</b> — ${sign}${d.trophies}\n`;
           });
-          msg += '\n';
+          extra.push(m);
         }
 
+        // Batallas
         const byBattles = [...deltas]
           .map(d => ({ name: d.name, battles: d.wins + d.losses }))
           .sort((a, b) => b.battles - a.battles)
-          .slice(0, 5);
-        if (byBattles.some(d => d.battles > 0)) {
-          msg += '<b>⚔️ Batallas (hoy)</b>\n';
+          .slice(0, 5)
+          .filter(d => d.battles > 0);
+        if (byBattles.length > 0) {
+          let m = '<b>--- Top Diario Batallas ---</b>\n';
           byBattles.forEach((d, i) => {
-            msg += `${medal(i)} <b>${d.name}</b> — ${d.battles} batallas\n`;
+            m += `${medal(i)} <b>${d.name}</b> — ${d.battles} batallas\n`;
           });
-          msg += '\n';
+          extra.push(m);
+        }
+
+        // Donaciones
+        const byDons = [...deltas].sort((a, b) => b.donations - a.donations).slice(0, 5).filter(d => d.donations > 0);
+        if (byDons.length > 0) {
+          let m = '<b>--- Top Diario Donaciones ---</b>\n';
+          byDons.forEach((d, i) => {
+            m += `${medal(i)} <b>${d.name}</b> — ${d.donations.toLocaleString()} 💎\n`;
+          });
+          extra.push(m);
         }
       }
     } catch { /* ok */ }
@@ -202,51 +216,60 @@ export async function handleTelegramCommand(
     // Weekly accumulator
     try {
       const accCfg = await prisma.botConfig.findUnique({
-        where: { key: `weekly_acc_${cleanClan}` },
+        where: { key: `weekly_acc_${clanTag}` },
       });
       if (accCfg) {
         const acc: AccEntry[] = JSON.parse(accCfg.value);
 
+        // Batallas semanales
         const byBattles = [...acc]
           .map(e => ({ name: e.name, battles: e.wins + e.losses }))
           .sort((a, b) => b.battles - a.battles)
-          .slice(0, 5);
-        if (byBattles.some(e => e.battles > 0)) {
-          msg += '<b>⚔️ Batallas (semana)</b>\n';
+          .slice(0, 5)
+          .filter(e => e.battles > 0);
+        if (byBattles.length > 0) {
+          let m = '<b>--- Top Semanal Batallas ---</b>\n';
           byBattles.forEach((e, i) => {
-            msg += `${medal(i)} <b>${e.name}</b> — ${e.battles} batallas\n`;
+            m += `${medal(i)} <b>${e.name}</b> — ${e.battles} batallas\n`;
           });
-          msg += '\n';
+          extra.push(m);
         }
 
-        const byDons = [...acc].sort((a, b) => b.donations - a.donations).slice(0, 5);
-        if (byDons.some(e => e.donations > 0)) {
-          msg += '<b>💎 Donaciones (semana)</b>\n';
+        // Donaciones semanales
+        const byDons = [...acc].sort((a, b) => b.donations - a.donations).slice(0, 5).filter(e => e.donations > 0);
+        if (byDons.length > 0) {
+          let m = '<b>--- Top Semanal Donaciones ---</b>\n';
           byDons.forEach((e, i) => {
-            msg += `${medal(i)} <b>${e.name}</b> — ${e.donations.toLocaleString()}\n`;
+            m += `${medal(i)} <b>${e.name}</b> — ${e.donations.toLocaleString()} 💎\n`;
           });
-          msg += '\n';
+          extra.push(m);
         }
 
-        const byFame = [...acc].sort((a, b) => b.fame - a.fame).slice(0, 5);
-        if (byFame.some(e => e.fame > 0)) {
-          msg += '<b>⚡ Fama de guerra (semana)</b>\n';
+        // Fama semanal
+        const byFame = [...acc].sort((a, b) => b.fame - a.fame).slice(0, 5).filter(e => e.fame > 0);
+        if (byFame.length > 0) {
+          let m = '<b>--- Top Semanal Guerra ---</b>\n';
           byFame.forEach((e, i) => {
-            msg += `${medal(i)} <b>${e.name}</b> — ${e.fame.toLocaleString()}\n`;
+            m += `${medal(i)} <b>${e.name}</b> — ${e.fame.toLocaleString()} ⚡ fama\n`;
           });
+          extra.push(m);
         }
 
         if (acc.length === 0 || acc.every(e => e.wins + e.losses + e.donations + e.fame === 0)) {
-          msg += '<i>Sin actividad esta semana todavía.</i>';
+          header += '\n<i>Sin actividad esta semana todavía.</i>';
         }
       } else {
-        msg += '<i>Sin datos semanales todavía.</i>';
+        header += '\n<i>Sin datos semanales todavía.</i>';
       }
     } catch {
-      msg += '<i>Error al cargar ranking semanal.</i>';
+      header += '\n<i>Error al cargar ranking semanal.</i>';
     }
 
-    return { text: msg };
+    if (extra.length === 0) {
+      header += '\n<i>Sin datos todavía. El ranking se actualiza cada 15 min.</i>';
+    }
+
+    return { text: header, extraMessages: extra };
   }
 
   if (cmd === '/clan') {

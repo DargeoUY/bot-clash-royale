@@ -188,6 +188,11 @@ async function pollUpdates(token: string): Promise<void> {
           if (reply.privateText) {
             await sendText(msg.from.id, reply.privateText);
           }
+          if (reply.extraMessages) {
+            for (const extra of reply.extraMessages) {
+              await sendText(msg.chat.id, extra);
+            }
+          }
         }
       }
     }
