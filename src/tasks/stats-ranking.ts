@@ -54,6 +54,7 @@ function formatTwoColumns(lines: string[], limit: number): { left: string; right
 
 let statsTask: cron.ScheduledTask | null = null;
 let midnightTask: cron.ScheduledTask | null = null;
+let lightTask: cron.ScheduledTask | null = null;
 
 function todayKey(): string {
   return new Date().toISOString().split('T')[0];
@@ -64,6 +65,8 @@ function yesterdayKey(): string {
   d.setDate(d.getDate() - 1);
   return d.toISOString().split('T')[0];
 }
+
+const nowHour = () => new Date().getHours();
 
 async function loadMidnightSnapshot(clanTag: string, dateStr: string): Promise<Map<string, PlayerStats> | null> {
   const key = `stats_midnight_${clanTag}_${dateStr}`;
@@ -109,11 +112,66 @@ async function runMidnightSnapshot(): Promise<void> {
       }
       if (stats.length > 0) {
         await saveMidnightSnapshot(clanTag, stats);
+        // Also update daily_deltas from midnight
+        await updateRunningDeltas(clanTag, stats);
       }
     } catch (err) {
       logger.error(`Midnight snapshot failed for ${clanTag}: ${(err as Error).message}`);
     }
   }
+}
+
+// Lightweight: only copas from member list → updates daily_deltas every 15 min
+async function run15MinUpdate(): Promise<void> {
+  const clans = await getAllClanConfigs();
+  for (const { clanTag } of clans) {
+    try {
+      const midnight = await loadMidnightSnapshot(clanTag, todayKey());
+      if (!midnight) continue;
+
+      const members = await getClanMembers(clanTag);
+      const stats: PlayerStats[] = members.map(m => ({
+        tag: m.tag,
+        name: m.name,
+        wins: 0, losses: 0, donations: 0,
+        trophies: m.trophies,
+      }));
+
+      await updateRunningDeltas(clanTag, stats);
+    } catch (err) {
+      logger.debug(`15min update failed for ${clanTag}: ${(err as Error).message}`);
+    }
+  }
+}
+
+async function updateRunningDeltas(clanTag: string, stats: PlayerStats[]): Promise<void> {
+  const midnight = await loadMidnightSnapshot(clanTag, todayKey());
+  if (!midnight) return;
+
+  const deltas: { tag: string; name: string; wins: number; losses: number; donations: number; trophies: number }[] = [];
+  for (const s of stats) {
+    const base = midnight.get(s.tag);
+    const dw = base ? s.wins - base.wins : 0;
+    const dl = base ? s.losses - base.losses : 0;
+    const dd = base ? s.donations - base.donations : 0;
+    const dt = s.trophies - (base?.trophies || 0);
+
+    deltas.push({
+      tag: s.tag,
+      name: s.name,
+      wins: Math.max(0, dw),
+      losses: Math.max(0, dl),
+      donations: Math.max(0, dd),
+      trophies: dt,
+    });
+  }
+
+  const deltaKey = `daily_deltas_${clanTag}`;
+  await prisma.botConfig.upsert({
+    where: { key: deltaKey },
+    update: { value: JSON.stringify(deltas) },
+    create: { key: deltaKey, value: JSON.stringify(deltas) },
+  });
 }
 
 async function cleanLeftPlayers(clanTag: string, activeTags: Set<string>): Promise<void> {
@@ -366,19 +424,27 @@ export async function publishStatsRanking(
     logger.error(`Error publishing stats: ${(err as Error).message}`);
   }
 }
-
 export function startStatsRanking(client: Client): void {
-  // Bootstrap: save first midnight snapshot now so Day 1 starts immediately
+  // Bootstrap: save first midnight snapshot now
   runMidnightSnapshot().then(() => {
     logger.info('Bootstrap: initial midnight snapshot saved');
   }).catch(err => {
     logger.error('Bootstrap snapshot failed:', (err as Error).message);
   });
+
+  // Midnight: full player data snapshot (baseline of the day)
   midnightTask = cron.schedule('0 0 * * *', async () => {
     logger.info('Midnight snapshot: saving baseline...');
     await runMidnightSnapshot();
   });
 
+  // Every 15 min: lightweight copas update
+  lightTask = cron.schedule('*/15 * * * *', async () => {
+    if (nowHour() === 0) return; // skip at midnight (full run handles it)
+    await run15MinUpdate();
+  });
+
+  // 9 AM: publish yesterday's complete ranking
   statsTask = cron.schedule('0 9 * * *', async () => {
     logger.info('Stats ranking task: starting...');
     const clans = await getAllClanConfigs();
@@ -391,11 +457,12 @@ export function startStatsRanking(client: Client): void {
     }
   });
 
-  logger.info('Stats ranking: midnight snapshot (00:00) + publish (09:00)');
+  logger.info('Stats ranking: midnight snapshot (00:00) + 15min light update + publish (09:00)');
 }
 
 export function stopStatsRanking(): void {
   if (statsTask) statsTask.stop();
   if (midnightTask) midnightTask.stop();
+  if (lightTask) lightTask.stop();
   logger.info('Stats ranking tasks stopped');
 }
