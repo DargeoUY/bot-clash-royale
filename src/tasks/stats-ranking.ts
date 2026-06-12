@@ -53,30 +53,67 @@ function formatTwoColumns(lines: string[], limit: number): { left: string; right
 }
 
 let statsTask: cron.ScheduledTask | null = null;
+let midnightTask: cron.ScheduledTask | null = null;
 
-async function loadPreviousSnapshot(clanTag: string): Promise<{ date: string; stats: Map<string, PlayerStats> } | null> {
-  const key = `stats_snapshot_${clanTag}`;
+function todayKey(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+function yesterdayKey(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+}
+
+async function loadMidnightSnapshot(clanTag: string, dateStr: string): Promise<Map<string, PlayerStats> | null> {
+  const key = `stats_midnight_${clanTag}_${dateStr}`;
   const cfg = await prisma.botConfig.findUnique({ where: { key } });
   if (!cfg) return null;
   try {
-    const raw = JSON.parse(cfg.value);
-    // Migrar formato viejo (array) a nuevo ({date, stats})
-    if (Array.isArray(raw)) return null;
-    const data = raw as { date: string; stats: PlayerStats[] };
-    return { date: data.date, stats: new Map(data.stats.map((s) => [s.tag, s])) };
+    const raw = JSON.parse(cfg.value) as PlayerStats[];
+    if (!Array.isArray(raw)) return null;
+    return new Map(raw.map((s) => [s.tag, s]));
   } catch {
     return null;
   }
 }
 
-async function saveSnapshot(clanTag: string, stats: PlayerStats[]): Promise<void> {
-  const key = `stats_snapshot_${clanTag}`;
-  const today = new Date().toISOString().split('T')[0];
+async function saveMidnightSnapshot(clanTag: string, stats: PlayerStats[]): Promise<void> {
+  const key = `stats_midnight_${clanTag}_${todayKey()}`;
   await prisma.botConfig.upsert({
     where: { key },
-    update: { value: JSON.stringify({ date: today, stats }) },
-    create: { key, value: JSON.stringify({ date: today, stats }) },
+    update: { value: JSON.stringify(stats) },
+    create: { key, value: JSON.stringify(stats) },
   });
+  logger.info(`Midnight snapshot saved for ${clanTag} (${stats.length} players)`);
+}
+
+async function runMidnightSnapshot(): Promise<void> {
+  const clans = await getAllClanConfigs();
+  for (const { clanTag } of clans) {
+    try {
+      const members = await getClanMembers(clanTag);
+      const stats: PlayerStats[] = [];
+      for (const member of members) {
+        try {
+          const player = await getPlayerInfo(member.tag);
+          stats.push({
+            tag: player.tag,
+            name: player.name,
+            wins: player.wins,
+            losses: player.losses,
+            donations: player.totalDonations || 0,
+            trophies: player.trophies,
+          });
+        } catch { /* skip */ }
+      }
+      if (stats.length > 0) {
+        await saveMidnightSnapshot(clanTag, stats);
+      }
+    } catch (err) {
+      logger.error(`Midnight snapshot failed for ${clanTag}: ${(err as Error).message}`);
+    }
+  }
 }
 
 async function cleanLeftPlayers(clanTag: string, activeTags: Set<string>): Promise<void> {
@@ -96,19 +133,14 @@ async function cleanLeftPlayers(clanTag: string, activeTags: Set<string>): Promi
       data: { status: 'left', leftAt: now },
     });
 
-    for (const key of [`stats_snapshot_${clanTag}`, `daily_deltas_${clanTag}`, `weekly_acc_${clanTag}`]) {
+    for (const key of [`daily_deltas_${clanTag}`, `weekly_acc_${clanTag}`]) {
       const cfg = await prisma.botConfig.findUnique({ where: { key } });
       if (!cfg) continue;
       try {
         const data = JSON.parse(cfg.value);
-        let arr: { tag: string }[] = [];
-        if (key.startsWith('stats_snapshot_')) {
-          const parsed = data as { date: string; stats: { tag: string }[] };
-          parsed.stats = parsed.stats.filter(s => s.tag !== p.tag);
-          await prisma.botConfig.update({ where: { key }, data: { value: JSON.stringify(parsed) } });
-        } else if (Array.isArray(data)) {
-          arr = data.filter((e: { tag: string }) => e.tag !== p.tag);
-          await prisma.botConfig.update({ where: { key }, data: { value: JSON.stringify(arr) } });
+        if (Array.isArray(data)) {
+          const filtered = data.filter((e: { tag: string }) => e.tag !== p.tag);
+          await prisma.botConfig.update({ where: { key }, data: { value: JSON.stringify(filtered) } });
         }
       } catch { /* skip corrupt data */ }
     }
@@ -163,12 +195,10 @@ export async function publishStatsRanking(
     }
   } catch { /* ok */ }
 
-  // Load previous snapshot BEFORE saving new one
-  const snapshot = await loadPreviousSnapshot(clanTag);
-  const isFirstDay = !snapshot;
-
-  // Save current as baseline for next day
-  await saveSnapshot(clanTag, current);
+  // Load midnight snapshots (today = this midnight, yesterday = previous midnight)
+  const todaySnap = await loadMidnightSnapshot(clanTag, todayKey());
+  const yesterdaySnap = await loadMidnightSnapshot(clanTag, yesterdayKey());
+  const isFirstDay = !yesterdaySnap;
 
   // Save players to DB
   for (const s of current) {
@@ -198,12 +228,12 @@ export async function publishStatsRanking(
 
     if (isFirstDay) {
       const header = new EmbedBuilder()
-        .setTitle('📊 Ranking del Clan — Día 1 (sin datos diarios aún)')
+        .setTitle('📊 Ranking del Clan — Día 1 (sin datos aún)')
         .setColor(EMBED_COLOR)
         .setDescription(
           `**${members.length}** jugadores sincronizados.\n\n` +
-          `📌 Hoy es el **primer día** de tracking. Se guardó la foto inicial.\n` +
-          `Mañana se mostrarán solo las partidas **de hoy** (delta diario).`
+          `📌 Se guardó la primera foto a las 00:00.\n` +
+          `A las 00:00 de hoy se toma otra, y mañana a esta hora se publica el delta del día completo (medianoche a medianoche).`
         )
         .setFooter({ text: `Actualizado cada 24h | Errores: ${errors}` })
         .setTimestamp();
@@ -212,21 +242,28 @@ export async function publishStatsRanking(
       return;
     }
 
-    const prev = snapshot!.stats;
-    const deltas: DeltaStats[] = [];
+    if (!todaySnap) {
+      logger.warn(`No today midnight snapshot for ${clanTag}, skipping`);
+      return;
+    }
 
-    for (const c of current) {
-      const p = prev?.get(c.tag);
-      const dw = p ? c.wins - p.wins : c.wins;
-      const dl = p ? c.losses - p.losses : c.losses;
-      const dd = p ? c.donations - p.donations : c.donations;
-      const dt = p ? c.trophies - p.trophies : c.trophies;
+    const deltas: DeltaStats[] = [];
+    const yesterdayLabel = `ayer (${yesterdayKey()})`;
+
+    for (const [tag, today] of todaySnap) {
+      const yesterday = yesterdaySnap.get(tag);
+      if (!yesterday) continue; // new player, skip
+
+      const dw = today.wins - yesterday.wins;
+      const dl = today.losses - yesterday.losses;
+      const dd = today.donations - yesterday.donations;
+      const dt = today.trophies - yesterday.trophies;
       const total = dw + dl;
       const wr = total > 0 ? Math.round((dw / total) * 100) : 0;
 
       deltas.push({
-        tag: c.tag,
-        name: c.name,
+        tag,
+        name: today.name,
         wins: dw,
         losses: dl,
         winRate: wr,
@@ -279,10 +316,10 @@ export async function publishStatsRanking(
 
     // Publish
     const header = new EmbedBuilder()
-      .setTitle('📊 Ranking del Clan — Diario')
+      .setTitle(`📊 Ranking del Clan — ${yesterdayLabel}`)
       .setColor(EMBED_COLOR)
       .setDescription(
-        `**${members.length}** jugadores | ✅ ${totalDailyW}V ❌ ${totalDailyL}D hoy | 💎 ${totalDonations.toLocaleString()} donaciones`
+        `**${members.length}** jugadores | ✅ ${totalDailyW}V ❌ ${totalDailyL}D ayer | 💎 ${totalDonations.toLocaleString()} donaciones`
       )
       .setFooter({ text: `Actualizado cada 24h | Errores: ${errors}` })
       .setTimestamp();
@@ -325,7 +362,12 @@ export async function publishStatsRanking(
 }
 
 export function startStatsRanking(client: Client): void {
-  statsTask = cron.schedule('0 8 * * *', async () => {
+  midnightTask = cron.schedule('0 0 * * *', async () => {
+    logger.info('Midnight snapshot: saving baseline...');
+    await runMidnightSnapshot();
+  });
+
+  statsTask = cron.schedule('0 9 * * *', async () => {
     logger.info('Stats ranking task: starting...');
     const clans = await getAllClanConfigs();
     for (const { clanTag, guildId } of clans) {
@@ -337,10 +379,11 @@ export function startStatsRanking(client: Client): void {
     }
   });
 
-  logger.info('Stats ranking task started (daily at 8:00 AM UTC)');
+  logger.info('Stats ranking: midnight snapshot (00:00) + publish (09:00)');
 }
 
 export function stopStatsRanking(): void {
   if (statsTask) statsTask.stop();
-  logger.info('Stats ranking task stopped');
+  if (midnightTask) midnightTask.stop();
+  logger.info('Stats ranking tasks stopped');
 }
