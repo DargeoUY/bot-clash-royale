@@ -564,11 +564,15 @@ export function startStatsRanking(client: Client): void {
     try {
       const clans = await getAllClanConfigs();
       for (const { clanTag } of clans) {
+        // Delete both # and non-# variants (clean up old keys)
         await prisma.botConfig.deleteMany({
-          where: { key: { in: [`weekly_acc_${clanTag}`, `daily_deltas_${clanTag}`] } },
+          where: { key: { startsWith: 'weekly_acc_' } },
+        });
+        await prisma.botConfig.deleteMany({
+          where: { key: { startsWith: 'daily_deltas_' } },
         });
       }
-      logger.info('Bootstrap: daily and weekly counters reset to 0');
+      logger.info('Bootstrap: all daily and weekly counters reset to 0');
     } catch (err) {
       logger.warn('Bootstrap reset failed:', (err as Error).message);
     }
