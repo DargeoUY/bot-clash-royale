@@ -713,7 +713,22 @@ export async function publishCachedRanking(
       await channel.send({ embeds: [embed] });
     }
 
-    logger.info(`Cached ranking published for ${clanTag} (${deltas.length} players, 0 API calls)`);
+    // Guerra (live from API)
+    try {
+      const race = await getCurrentRiverRace(clanTag);
+      if (race.clan?.participants?.length) {
+        const byFame = [...race.clan.participants].sort((a, b) => b.fame - a.fame).slice(0, 5).filter(p => p.fame > 0);
+        if (byFame.length > 0) {
+          const embed = new EmbedBuilder()
+            .setTitle('--- Top Diario Guerra ---')
+            .setColor(0x9B59B6)
+            .setDescription(byFame.map((p, i) => `${medal(i)} **${p.name}** — ${p.fame.toLocaleString()} ⚡ fama`).join('\n'));
+          await channel.send({ embeds: [embed] });
+        }
+      }
+    } catch { /* ok */ }
+
+    logger.info(`Cached ranking published for ${clanTag} (${deltas.length} players)`);
   } catch (err) {
     logger.error(`Error publishing cached ranking: ${(err as Error).message}`);
   }
@@ -779,6 +794,18 @@ export async function buildAdminRankingEmbeds(clanTag: string): Promise<EmbedBui
       embeds.push(new EmbedBuilder().setTitle('--- Donaciones (todos) ---').setColor(0xFF69B4).setDescription(donDesc.slice(i, i + 1024)));
     }
   }
+
+  // Guerra (live from API)
+  try {
+    const race = await getCurrentRiverRace(clanTag);
+    if (race.clan?.participants?.length) {
+      const byFame = [...race.clan.participants].sort((a, b) => b.fame - a.fame);
+      const fameDesc = byFame.map((p, i) => `${medal(i)} **${p.name}** — ${p.fame.toLocaleString()} ⚡ fama`).join('\n');
+      for (let i = 0; i < fameDesc.length; i += 1024) {
+        embeds.push(new EmbedBuilder().setTitle('--- Guerra (todos) ---').setColor(0x9B59B6).setDescription(fameDesc.slice(i, i + 1024)));
+      }
+    }
+  } catch { /* ok */ }
 
   return embeds;
 }

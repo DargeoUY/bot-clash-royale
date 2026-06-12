@@ -301,6 +301,21 @@ export async function handleTelegramCommand(
           });
           extra.push(m);
         }
+
+        // Guerra (live from API)
+        try {
+          const race = await getCurrentRiverRace(clanTag);
+          if (race.clan?.participants?.length) {
+            const byFame = [...race.clan.participants].sort((a, b) => b.fame - a.fame).slice(0, 5).filter(p => p.fame > 0);
+            if (byFame.length > 0) {
+              let m = '<b>--- Top Diario Guerra ---</b>\n';
+              byFame.forEach((p, i) => {
+                m += `${medal(i)} <b>${p.name}</b> — ${p.fame.toLocaleString()} ⚡ fama\n`;
+              });
+              extra.push(m);
+            }
+          }
+        } catch { /* ok */ }
       }
     } catch { /* ok */ }
 
