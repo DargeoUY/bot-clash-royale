@@ -6,7 +6,6 @@ services:
       mysql:
         condition: service_started
     restart: unless-stopped
-    network_mode: host
     volumes:
       - ./logs:/app/logs
       - ./backups:/app/backups
