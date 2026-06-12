@@ -225,10 +225,6 @@ export async function syncCurrentWar(clanTag: string): Promise<void> {
     const latestEntry = periodLog.items[0];
     if (!latestEntry) return;
 
-    const clanStanding = latestEntry.standings.find(
-      (s) => s.clan.tag === clanTag,
-    );
-
     const existingWar = await prisma.warLog.findFirst({
       where: {
         clanTag,
@@ -237,51 +233,19 @@ export async function syncCurrentWar(clanTag: string): Promise<void> {
       },
     });
 
-    if (existingWar) {
-      if (clanStanding) {
-        await prisma.warLog.update({
-          where: { id: existingWar.id },
-          data: {
-            participants: clanStanding.clan.participants.length,
-            fame: clanStanding.clan.fame,
-          },
-        });
+    if (existingWar) return;
 
-        for (const participant of clanStanding.clan.participants) {
-          await prisma.warParticipant.upsert({
-            where: { warLogId_playerTag: { warLogId: existingWar.id, playerTag: participant.tag } },
-            update: {
-              fame: participant.fame,
-              repairPoints: participant.repairPoints,
-              boatsAttacked: participant.boatAttacks,
-              decksUsed: participant.decksUsed,
-              decksUsedToday: participant.decksUsedToday,
-            },
-            create: {
-              warLogId: existingWar.id,
-              playerTag: participant.tag,
-              fame: participant.fame,
-              repairPoints: participant.repairPoints,
-              boatsAttacked: participant.boatAttacks,
-              decksUsed: participant.decksUsed,
-              decksUsedToday: participant.decksUsedToday,
-            },
-          });
-        }
-      }
-      logger.debug(`War updated: season ${latestEntry.seasonId}, ${clanStanding?.clan?.participants?.length ?? 0} participants`);
-      return;
-    }
-
-    const startDate = parseSafeDate(latestEntry.createdDate) ?? new Date();
+    const clanStanding = latestEntry.standings.find(
+      (s) => s.clan.tag === clanTag,
+    );
 
     const warLog = await prisma.warLog.create({
       data: {
         clanTag,
         seasonId: String(latestEntry.seasonId),
         warType: 'riverRace',
-        startDate,
-        endDate: null,
+        startDate: new Date(),
+        endDate: new Date(),
         participants: clanStanding?.clan?.participants?.length ?? 0,
         fame: clanStanding?.clan?.fame ?? 0,
       },

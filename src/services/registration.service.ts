@@ -27,7 +27,7 @@ export async function registerPlayer(
     if (!playerInfo.clan || playerInfo.clan.tag !== clanTag) {
       return {
         success: false,
-        error: `${playerInfo.name} no pertenece al clan. Pertenece a ${playerInfo.clan?.name || 'ningún clan'}.`,
+        error: `#${playerInfo.name} no pertenece al clan. Pertenece a ${playerInfo.clan?.name || 'ningún clan'}.`,
       };
     }
 

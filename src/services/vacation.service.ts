@@ -134,35 +134,19 @@ export async function processExpiredVacations(): Promise<void> {
 }
 
 async function getVacationDaysUsed(playerTag: string, season: string): Promise<number> {
-  const [seasonStart, seasonEnd] = getSeasonRange(season);
-
   const vacations = await prisma.vacation.findMany({
-    where: {
-      playerTag,
-      OR: [
-        { startDate: { gte: seasonStart, lte: seasonEnd } },
-        { endDate: { gte: seasonStart, lte: seasonEnd } },
-        { startDate: { lte: seasonStart }, endDate: { gte: seasonEnd } },
-      ],
-    },
+    where: { playerTag },
   });
 
   let total = 0;
   for (const v of vacations) {
-    const start = new Date(Math.max(v.startDate.getTime(), seasonStart.getTime()));
-    const end = new Date(Math.min(v.endDate.getTime(), seasonEnd.getTime(), new Date().getTime()));
+    const start = new Date(Math.max(v.startDate.getTime(), new Date(`${season}-01`).getTime()));
+    const end = new Date(Math.min(v.endDate.getTime(), new Date().getTime()));
     const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     if (days > 0) total += days;
   }
 
   return Math.min(total, config.VACATION_MAX_DAYS);
-}
-
-function getSeasonRange(season: string): [Date, Date] {
-  const [year, month] = season.split('-').map(Number);
-  const start = new Date(year, month - 1, 1);
-  const end = new Date(year, month, 0, 23, 59, 59, 999);
-  return [start, end];
 }
 
 function getCurrentSeason(): string {
