@@ -6,6 +6,7 @@ import { isValidPlayerTag, formatPlayerTag } from '../utils/validators';
 import { errorEmbed, successEmbed, EMBED_COLOR } from '../utils/embeds';
 import { publishStatsRanking } from '../tasks/stats-ranking';
 import { publishWeeklyRanking } from '../tasks/stats-ranking';
+import { publishCachedRanking } from '../tasks/stats-ranking';
 
 async function ejecutarVer(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
@@ -214,7 +215,7 @@ export const ranking: BotCommand = {
       await interaction.deferReply();
       const clanTag = await getGuildClanTag(interaction.guildId!);
       try {
-        await publishStatsRanking(interaction.client, clanTag, interaction.guildId!);
+        await publishCachedRanking(interaction.client, clanTag, interaction.guildId!);
         await interaction.editReply({ content: '✅ Ranking diario publicado.' });
       } catch {
         await interaction.editReply({ embeds: [errorEmbed('Error', 'No se pudo generar el ranking.')] });

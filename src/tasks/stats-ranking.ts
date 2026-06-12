@@ -614,6 +614,77 @@ export function startStatsRanking(client: Client): void {
   logger.info('Stats ranking: midnight (00:00) + 15min light + daily/weekly publish (09:00)');
 }
 
+// Cached version: reads from DB only, 0 API calls. Used by /ranking stats.
+export async function publishCachedRanking(
+  client: Client,
+  clanTag: string,
+  guildId: string,
+): Promise<void> {
+  const deltaCfg = await prisma.botConfig.findUnique({
+    where: { key: `daily_deltas_${clanTag}` },
+  });
+  if (!deltaCfg) {
+    logger.warn(`No cached deltas for ${clanTag}`);
+    return;
+  }
+
+  let deltas: { name: string; trophies: number; wins: number; losses: number; donations: number }[];
+  try { deltas = JSON.parse(deltaCfg.value); } catch { return; }
+  if (!deltas.length) return;
+
+  const byTrophies = [...deltas].filter(d => d.trophies > 0).sort((a, b) => b.trophies - a.trophies);
+  const byBattles = [...deltas].filter(d => d.wins + d.losses > 0).sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
+  const byDonations = [...deltas].filter(d => d.donations > 0).sort((a, b) => b.donations - a.donations);
+
+  const totalW = deltas.reduce((s, d) => s + d.wins, 0);
+  const totalL = deltas.reduce((s, d) => s + d.losses, 0);
+  const totalD = deltas.reduce((s, d) => s + d.donations, 0);
+
+  const channelKey = `channel_ranking_${guildId}`;
+  const cfg = await prisma.botConfig.findUnique({ where: { key: channelKey } });
+  if (!cfg) return;
+
+  try {
+    const channel = (await client.channels.fetch(cfg.value)) as TextChannel;
+    if (!channel) return;
+
+    const header = new EmbedBuilder()
+      .setTitle('📊 Ranking Diario (desde caché)')
+      .setColor(EMBED_COLOR)
+      .setDescription(`${deltas.length} jugadores | ✅ ${totalW}V ❌ ${totalL}D | 💎 ${totalD.toLocaleString()} donaciones`)
+      .setTimestamp();
+    await channel.send({ embeds: [header] });
+
+    if (byTrophies.length > 0) {
+      const embed = new EmbedBuilder()
+        .setTitle('--- Top Diario Copas ---')
+        .setColor(0xFFD700)
+        .setDescription(byTrophies.slice(0, 5).map((d, i) => `${medal(i)} **${d.name}** — +${d.trophies}`).join('\n'));
+      await channel.send({ embeds: [embed] });
+    }
+
+    if (byBattles.length > 0) {
+      const embed = new EmbedBuilder()
+        .setTitle('--- Top Diario Batallas ---')
+        .setColor(0xE74C3C)
+        .setDescription(byBattles.slice(0, 5).map((d, i) => `${medal(i)} **${d.name}** — ${d.wins + d.losses} batallas (${d.wins}V/${d.losses}D)`).join('\n'));
+      await channel.send({ embeds: [embed] });
+    }
+
+    if (byDonations.length > 0) {
+      const embed = new EmbedBuilder()
+        .setTitle('--- Top Diario Donaciones ---')
+        .setColor(0xFF69B4)
+        .setDescription(byDonations.slice(0, 5).map((d, i) => `${medal(i)} **${d.name}** — ${d.donations.toLocaleString()} 💎`).join('\n'));
+      await channel.send({ embeds: [embed] });
+    }
+
+    logger.info(`Cached ranking published for ${clanTag} (${deltas.length} players, 0 API calls)`);
+  } catch (err) {
+    logger.error(`Error publishing cached ranking: ${(err as Error).message}`);
+  }
+}
+
 export function stopStatsRanking(): void {
   if (statsTask) statsTask.stop();
   if (midnightTask) midnightTask.stop();
