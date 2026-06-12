@@ -181,3 +181,49 @@ model ClanHistory {
 
   player    Player   @relation(fields: [playerTag], references: [tag])
 }
+
+model StatsSnapshot {
+  id        Int      @id @default(autoincrement())
+  playerTag String
+  date      String   // YYYY-MM-DD
+  clanTag   String
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  donations Int      @default(0)
+  trophies  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([playerTag, date])
+  @@index([clanTag, date])
+}
+
+model DailyDelta {
+  id        Int      @id @default(autoincrement())
+  playerTag String
+  date      String   // YYYY-MM-DD
+  clanTag   String
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  donations Int      @default(0)
+  trophies  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([playerTag, date])
+  @@index([clanTag, date])
+}
+
+model WeeklyAcc {
+  id        Int      @id @default(autoincrement())
+  playerTag String
+  weekStart String   // YYYY-MM-DD (Monday)
+  clanTag   String
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  donations Int      @default(0)
+  trophies  Int      @default(0)
+  fame      Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([playerTag, weekStart])
+  @@index([clanTag, weekStart])
+}

@@ -3,8 +3,64 @@ import { getClanInfo, getCurrentRiverRace } from '../api/clan';
 import prisma from '../database/prisma';
 import logger from '../config/logger';
 
+function todayKey(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+function getMonday(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay() + 1);
+  return d.toISOString().split('T')[0];
+}
+
 const cooldowns = new Map<number, number>();
 const COOLDOWN_MS = 10_000;
+
+async function loadDeltasWithNames(clanTag: string): Promise<{ tag: string; name: string; wins: number; losses: number; donations: number; trophies: number }[]> {
+  const rows = await prisma.dailyDelta.findMany({
+    where: { clanTag, date: todayKey() },
+  });
+  if (rows.length === 0) return [];
+
+  const players = await prisma.player.findMany({
+    where: { tag: { in: rows.map(r => r.playerTag) } },
+    select: { tag: true, name: true },
+  });
+  const nameMap = new Map(players.map(p => [p.tag, p.name]));
+
+  return rows.map(r => ({
+    tag: r.playerTag,
+    name: nameMap.get(r.playerTag) || r.playerTag,
+    wins: r.wins,
+    losses: r.losses,
+    donations: r.donations,
+    trophies: r.trophies,
+  }));
+}
+
+async function loadWeeklyWithNames(clanTag: string): Promise<{ tag: string; name: string; wins: number; losses: number; donations: number; trophies: number; fame: number }[]> {
+  const monday = getMonday();
+  const rows = await prisma.weeklyAcc.findMany({
+    where: { clanTag, weekStart: monday },
+  });
+  if (rows.length === 0) return [];
+
+  const players = await prisma.player.findMany({
+    where: { tag: { in: rows.map(r => r.playerTag) } },
+    select: { tag: true, name: true },
+  });
+  const nameMap = new Map(players.map(p => [p.tag, p.name]));
+
+  return rows.map(r => ({
+    tag: r.playerTag,
+    name: nameMap.get(r.playerTag) || r.playerTag,
+    wins: r.wins,
+    losses: r.losses,
+    donations: r.donations,
+    trophies: r.trophies,
+    fame: r.fame,
+  }));
+}
 
 function checkCooldown(userId: number): boolean {
   const last = cooldowns.get(userId);
@@ -180,17 +236,12 @@ export async function handleTelegramCommand(
       let allPrivate = '<b>📊 Ranking Completo — Todos los jugadores</b>\n\n';
 
       try {
-        const deltaCfg = await prisma.botConfig.findUnique({
-          where: { key: `daily_deltas_${clanTag}` },
-        });
-        if (deltaCfg) {
-          const deltas = JSON.parse(deltaCfg.value) as { name: string; trophies: number; wins: number; losses: number; donations: number }[];
-
+        const deltas = await loadDeltasWithNames(clanTag);
+        if (deltas.length > 0) {
           const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies);
           allPrivate += '<b>--- Copas (todos) ---</b>\n';
           byTrophies.forEach((d, i) => {
-            const sign = d.trophies > 0 ? '+' : '';
-            allPrivate += `${i + 1}. <b>${d.name}</b> — ${sign}${d.trophies}\n`;
+            allPrivate += `${i + 1}. <b>${d.name}</b> — ${d.trophies > 0 ? '+' : ''}${d.trophies}\n`;
           });
 
           const byBattles = [...deltas].sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
@@ -215,12 +266,8 @@ export async function handleTelegramCommand(
 
     // Daily deltas
     try {
-      const deltaCfg = await prisma.botConfig.findUnique({
-        where: { key: `daily_deltas_${clanTag}` },
-      });
-      if (deltaCfg) {
-        const deltas = JSON.parse(deltaCfg.value) as { name: string; trophies: number; wins: number; losses: number; donations: number }[];
-
+      const deltas = await loadDeltasWithNames(clanTag);
+      if (deltas.length > 0) {
         // Copas
         const byTrophies = [...deltas].filter(d => d.trophies > 0).sort((a, b) => b.trophies - a.trophies).slice(0, 5);
         if (byTrophies.length > 0) {
@@ -259,12 +306,8 @@ export async function handleTelegramCommand(
 
     // Weekly accumulator
     try {
-      const accCfg = await prisma.botConfig.findUnique({
-        where: { key: `weekly_acc_${clanTag}` },
-      });
-      if (accCfg) {
-        const acc: AccEntry[] = JSON.parse(accCfg.value);
-
+      const acc = await loadWeeklyWithNames(clanTag);
+      if (acc.length > 0) {
         // Batallas semanales
         const byBattles = [...acc]
           .map(e => ({ name: e.name, battles: e.wins + e.losses }))
@@ -299,7 +342,7 @@ export async function handleTelegramCommand(
           extra.push(m);
         }
 
-        if (acc.length === 0 || acc.every(e => e.wins + e.losses + e.donations + e.fame === 0)) {
+        if (acc.every(e => e.wins + e.losses + e.donations + e.fame === 0)) {
           header += '\n<i>Sin actividad esta semana todavía.</i>';
         }
       } else {
@@ -361,19 +404,13 @@ export async function handleTelegramCommand(
 
     let msg = '<b>📊 Ranking Completo (admin)</b>\n\n';
 
-    // Daily deltas
     try {
-      const deltaCfg = await prisma.botConfig.findUnique({
-        where: { key: `daily_deltas_${clanTag}` },
-      });
-      if (deltaCfg) {
-        const deltas = JSON.parse(deltaCfg.value) as { name: string; trophies: number; wins: number; losses: number; donations: number }[];
-
+      const deltas = await loadDeltasWithNames(clanTag);
+      if (deltas.length > 0) {
         const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies);
         msg += '<b>--- Copas (todos) ---</b>\n';
         byTrophies.forEach((d, i) => {
-          const sign = d.trophies > 0 ? '+' : '';
-          msg += `${i + 1}. <b>${d.name}</b> — ${sign}${d.trophies}\n`;
+          msg += `${i + 1}. <b>${d.name}</b> — ${d.trophies > 0 ? '+' : ''}${d.trophies}\n`;
         });
 
         const byBattles = [...deltas].sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));

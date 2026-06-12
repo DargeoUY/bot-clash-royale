@@ -5,6 +5,10 @@ import { getCurrentRiverRace } from '../api/clan';
 import prisma from '../database/prisma';
 import { errorEmbed, EMBED_COLOR } from '../utils/embeds';
 
+function todayKey(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
 function medal(i: number): string {
   return i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`;
 }
@@ -14,14 +18,23 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
 
   const clanTag = await getGuildClanTag(interaction.guildId!);
 
-  const deltaCfg = await prisma.botConfig.findUnique({
-    where: { key: `daily_deltas_${clanTag}` },
+  const rows = await prisma.dailyDelta.findMany({
+    where: { clanTag, date: todayKey() },
   });
 
-  let deltas: { name: string; trophies: number; wins: number; losses: number; donations: number }[] = [];
-  if (deltaCfg) {
-    try { deltas = JSON.parse(deltaCfg.value); } catch { /* empty */ }
-  }
+  const players = await prisma.player.findMany({
+    where: { tag: { in: rows.map(r => r.playerTag) } },
+    select: { tag: true, name: true },
+  });
+  const nameMap = new Map(players.map(p => [p.tag, p.name]));
+
+  const deltas = rows.map(r => ({
+    name: nameMap.get(r.playerTag) || r.playerTag,
+    trophies: r.trophies,
+    wins: r.wins,
+    losses: r.losses,
+    donations: r.donations,
+  }));
 
   // War stats (live, 1 API call)
   let warPlayers: { name: string; fame: number }[] = [];

@@ -5,7 +5,6 @@ import { getClanMembers } from '../api/clan';
 import { getPlayerInfo } from '../api/player';
 import { getCurrentRiverRace } from '../api/clan';
 import { getAllClanConfigs } from '../utils/guild';
-import { addToWeeklyAccumulator } from './weekly-winners';
 import { addToMonthlyAccumulator } from './monthly-winners';
 import { EMBED_COLOR } from '../utils/embeds';
 import logger from '../config/logger';
@@ -69,26 +68,27 @@ function yesterdayKey(): string {
 const nowHour = () => new Date().getHours();
 
 async function loadMidnightSnapshot(clanTag: string, dateStr: string): Promise<Map<string, PlayerStats> | null> {
-  const key = `stats_midnight_${clanTag}_${dateStr}`;
-  const cfg = await prisma.botConfig.findUnique({ where: { key } });
-  if (!cfg) return null;
-  try {
-    const raw = JSON.parse(cfg.value) as PlayerStats[];
-    if (!Array.isArray(raw)) return null;
-    return new Map(raw.map((s) => [s.tag, s]));
-  } catch {
-    return null;
+  const rows = await prisma.statsSnapshot.findMany({
+    where: { clanTag, date: dateStr },
+  });
+  if (rows.length === 0) return null;
+  const map = new Map<string, PlayerStats>();
+  for (const r of rows) {
+    map.set(r.playerTag, { tag: r.playerTag, name: '', wins: r.wins, losses: r.losses, donations: r.donations, trophies: r.trophies });
   }
+  return map;
 }
 
 async function saveMidnightSnapshot(clanTag: string, stats: PlayerStats[]): Promise<void> {
-  const key = `stats_midnight_${clanTag}_${todayKey()}`;
-  await prisma.botConfig.upsert({
-    where: { key },
-    update: { value: JSON.stringify(stats) },
-    create: { key, value: JSON.stringify(stats) },
-  });
-  logger.info(`Midnight snapshot saved for ${clanTag} (${stats.length} players)`);
+  const date = todayKey();
+  for (const s of stats) {
+    await prisma.statsSnapshot.upsert({
+      where: { playerTag_date: { playerTag: s.tag, date } },
+      create: { playerTag: s.tag, date, clanTag, wins: s.wins, losses: s.losses, donations: s.donations, trophies: s.trophies },
+      update: { wins: s.wins, losses: s.losses, donations: s.donations, trophies: s.trophies },
+    });
+  }
+  logger.info(`Midnight snapshot saved for ${clanTag} (${stats.length} players to DB)`);
 }
 
 async function runMidnightSnapshot(): Promise<void> {
@@ -148,30 +148,20 @@ async function updateRunningDeltas(clanTag: string, stats: PlayerStats[]): Promi
   const midnight = await loadMidnightSnapshot(clanTag, todayKey());
   if (!midnight) return;
 
-  const deltas: { tag: string; name: string; wins: number; losses: number; donations: number; trophies: number }[] = [];
+  const date = todayKey();
   for (const s of stats) {
     const base = midnight.get(s.tag);
-    const dw = base ? s.wins - base.wins : 0;
-    const dl = base ? s.losses - base.losses : 0;
-    const dd = base ? s.donations - base.donations : 0;
+    const dw = base ? Math.max(0, s.wins - base.wins) : 0;
+    const dl = base ? Math.max(0, s.losses - base.losses) : 0;
+    const dd = base ? Math.max(0, s.donations - base.donations) : 0;
     const dt = Math.max(0, s.trophies - (base?.trophies || 0));
 
-    deltas.push({
-      tag: s.tag,
-      name: s.name,
-      wins: Math.max(0, dw),
-      losses: Math.max(0, dl),
-      donations: Math.max(0, dd),
-      trophies: dt,
+    await prisma.dailyDelta.upsert({
+      where: { playerTag_date: { playerTag: s.tag, date } },
+      create: { playerTag: s.tag, date, clanTag, wins: dw, losses: dl, donations: dd, trophies: dt },
+      update: { wins: dw, losses: dl, donations: dd, trophies: dt },
     });
   }
-
-  const deltaKey = `daily_deltas_${clanTag}`;
-  await prisma.botConfig.upsert({
-    where: { key: deltaKey },
-    update: { value: JSON.stringify(deltas) },
-    create: { key: deltaKey, value: JSON.stringify(deltas) },
-  });
 }
 
 async function cleanLeftPlayers(clanTag: string, activeTags: Set<string>): Promise<void> {
@@ -191,18 +181,16 @@ async function cleanLeftPlayers(clanTag: string, activeTags: Set<string>): Promi
       data: { status: 'left', leftAt: now },
     });
 
-    for (const key of [`daily_deltas_${clanTag}`, `weekly_acc_${clanTag}`]) {
-      const cfg = await prisma.botConfig.findUnique({ where: { key } });
-      if (!cfg) continue;
-      try {
-        const data = JSON.parse(cfg.value);
-        if (Array.isArray(data)) {
-          const filtered = data.filter((e: { tag: string }) => e.tag !== p.tag);
-          await prisma.botConfig.update({ where: { key }, data: { value: JSON.stringify(filtered) } });
-        }
-      } catch { /* skip corrupt data */ }
-    }
+    await prisma.dailyDelta.deleteMany({ where: { playerTag: p.tag } });
+    const monday = getWeekStart();
+    await prisma.weeklyAcc.deleteMany({ where: { playerTag: p.tag, weekStart: monday } });
   }
+}
+
+function getWeekStart(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay() + 1); // Monday
+  return d.toISOString().split('T')[0];
 }
 
 export async function publishStatsRanking(
@@ -336,25 +324,32 @@ export async function publishStatsRanking(
       });
     }
 
-    // Save daily deltas for Telegram /ranking
-    const deltaKey = `daily_deltas_${clanTag}`;
-    await prisma.botConfig.upsert({
-      where: { key: deltaKey },
-      update: { value: JSON.stringify(deltas) },
-      create: { key: deltaKey, value: JSON.stringify(deltas) },
-    });
+    // Save daily deltas to DB
+    const yesterdayDate = yesterdayKey();
+    for (const d of deltas) {
+      await prisma.dailyDelta.upsert({
+        where: { playerTag_date: { playerTag: d.tag, date: yesterdayDate } },
+        create: { playerTag: d.tag, date: yesterdayDate, clanTag, wins: d.wins, losses: d.losses, donations: d.donations, trophies: d.trophies },
+        update: { wins: d.wins, losses: d.losses, donations: d.donations, trophies: d.trophies },
+      });
+    }
 
     // Add to weekly accumulator
-    const weeklyEntries = deltas.map((d) => ({
-      tag: d.tag,
-      name: d.name,
-      wins: d.wins,
-      losses: d.losses,
-      donations: d.donations,
-      trophies: Math.max(0, d.trophies),
-      fame: warStats.find((w) => w.tag === d.tag)?.fame || 0,
-    }));
-    await addToWeeklyAccumulator(clanTag, weeklyEntries);
+    const monday = getWeekStart();
+    for (const d of deltas) {
+      const fame = warStats.find(w => w.tag === d.tag)?.fame || 0;
+      await prisma.weeklyAcc.upsert({
+        where: { playerTag_weekStart: { playerTag: d.tag, weekStart: monday } },
+        create: { playerTag: d.tag, weekStart: monday, clanTag, wins: d.wins, losses: d.losses, donations: d.donations, trophies: Math.max(0, d.trophies), fame },
+        update: {
+          wins: { increment: d.wins },
+          losses: { increment: d.losses },
+          donations: { increment: d.donations },
+          trophies: { increment: Math.max(0, d.trophies) },
+          fame: { increment: fame },
+        },
+      });
+    }
 
     // Add to monthly accumulator
     const monthlyEntries = deltas.map((d) => ({
@@ -454,13 +449,27 @@ export async function publishWeeklyRanking(
   clanTag: string,
   guildId: string,
 ): Promise<void> {
-  const accKey = `weekly_acc_${clanTag}`;
-  const accCfg = await prisma.botConfig.findUnique({ where: { key: accKey } });
-  if (!accCfg) return;
+  const monday = getWeekStart();
+  const rows = await prisma.weeklyAcc.findMany({
+    where: { clanTag, weekStart: monday },
+  });
+  if (rows.length === 0) return;
 
-  let acc: { tag: string; name: string; wins: number; losses: number; donations: number; trophies: number; fame: number }[];
-  try { acc = JSON.parse(accCfg.value); } catch { return; }
-  if (!acc.length) return;
+  const players = await prisma.player.findMany({
+    where: { tag: { in: rows.map(r => r.playerTag) } },
+    select: { tag: true, name: true },
+  });
+  const nameMap = new Map(players.map(p => [p.tag, p.name]));
+
+  const acc = rows.map(r => ({
+    tag: r.playerTag,
+    name: nameMap.get(r.playerTag) || r.playerTag,
+    wins: r.wins,
+    losses: r.losses,
+    donations: r.donations,
+    trophies: r.trophies,
+    fame: r.fame,
+  }));
 
   const members = await getClanMembers(clanTag);
 
@@ -552,7 +561,7 @@ export async function publishWeeklyRanking(
     logger.info(`Weekly ranking published for ${clanTag}`);
 
     // Reset weekly accumulator after publishing
-    await prisma.botConfig.delete({ where: { key: accKey } });
+    await prisma.weeklyAcc.deleteMany({ where: { clanTag, weekStart: monday } });
     logger.info(`Weekly accumulator reset for ${clanTag}`);
   } catch (err) {
     logger.error(`Error publishing weekly ranking: ${(err as Error).message}`);
@@ -564,18 +573,16 @@ export function startStatsRanking(client: Client): void {
     try {
       const clans = await getAllClanConfigs();
       for (const { clanTag } of clans) {
-        const existing = await loadMidnightSnapshot(clanTag, todayKey());
+        const existing = await prisma.statsSnapshot.findFirst({
+          where: { clanTag, date: todayKey() },
+        });
         if (!existing) {
-          // First time: clean old keys and start fresh
-          await prisma.botConfig.deleteMany({
-            where: { key: { startsWith: 'weekly_acc_' } },
-          });
-          await prisma.botConfig.deleteMany({
-            where: { key: { startsWith: 'daily_deltas_' } },
-          });
+          // First time: clean old data
+          await prisma.dailyDelta.deleteMany({ where: { clanTag } });
+          await prisma.weeklyAcc.deleteMany({ where: { clanTag } });
           logger.info(`Bootstrap: first run for ${clanTag}, counters reset to 0`);
         } else {
-          logger.info(`Bootstrap: ${clanTag} already initialized (${existing.size} players), data preserved`);
+          logger.info(`Bootstrap: ${clanTag} already initialized, data preserved`);
         }
       }
     } catch (err) {
@@ -595,6 +602,16 @@ export function startStatsRanking(client: Client): void {
   lightTask = cron.schedule('*/15 * * * *', async () => {
     if (nowHour() === 0) return;
     await run15MinUpdate();
+  });
+
+  // Monthly cleanup: remove data older than 30 days
+  cron.schedule('0 3 1 * *', async () => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    const result1 = await prisma.statsSnapshot.deleteMany({ where: { date: { lt: cutoffStr } } });
+    const result2 = await prisma.dailyDelta.deleteMany({ where: { date: { lt: cutoffStr } } });
+    logger.info(`Monthly cleanup: deleted ${result1.count} snapshots, ${result2.count} deltas older than ${cutoffStr}`);
   });
 
   // 9 AM daily: publish yesterday's complete ranking
@@ -625,17 +642,29 @@ export async function publishCachedRanking(
   clanTag: string,
   guildId: string,
 ): Promise<void> {
-  const deltaCfg = await prisma.botConfig.findUnique({
-    where: { key: `daily_deltas_${clanTag}` },
+  const today = todayKey();
+  const rows = await prisma.dailyDelta.findMany({
+    where: { clanTag, date: today },
   });
-  if (!deltaCfg) {
+  if (rows.length === 0) {
     logger.warn(`No cached deltas for ${clanTag}`);
     return;
   }
 
-  let deltas: { name: string; trophies: number; wins: number; losses: number; donations: number }[];
-  try { deltas = JSON.parse(deltaCfg.value); } catch { return; }
-  if (!deltas.length) return;
+  // Also get names from player table
+  const players = await prisma.player.findMany({
+    where: { tag: { in: rows.map(r => r.playerTag) } },
+    select: { tag: true, name: true },
+  });
+  const nameMap = new Map(players.map(p => [p.tag, p.name]));
+
+  const deltas = rows.map(r => ({
+    name: nameMap.get(r.playerTag) || r.playerTag,
+    trophies: r.trophies,
+    wins: r.wins,
+    losses: r.losses,
+    donations: r.donations,
+  }));
 
   const byTrophies = [...deltas].filter(d => d.trophies > 0).sort((a, b) => b.trophies - a.trophies);
   const byBattles = [...deltas].filter(d => d.wins + d.losses > 0).sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
@@ -690,16 +719,27 @@ export async function publishCachedRanking(
   }
 }
 
-// Returns embeds with ALL players from cache (for admin private view)
+// Returns embeds with ALL players from DB (for admin private view)
 export async function buildAdminRankingEmbeds(clanTag: string): Promise<EmbedBuilder[]> {
-  const deltaCfg = await prisma.botConfig.findUnique({
-    where: { key: `daily_deltas_${clanTag}` },
+  const today = todayKey();
+  const rows = await prisma.dailyDelta.findMany({
+    where: { clanTag, date: today },
   });
-  if (!deltaCfg) return [];
+  if (rows.length === 0) return [];
 
-  let deltas: { name: string; trophies: number; wins: number; losses: number; donations: number }[];
-  try { deltas = JSON.parse(deltaCfg.value); } catch { return []; }
-  if (!deltas.length) return [];
+  const players = await prisma.player.findMany({
+    where: { tag: { in: rows.map(r => r.playerTag) } },
+    select: { tag: true, name: true },
+  });
+  const nameMap = new Map(players.map(p => [p.tag, p.name]));
+
+  const deltas = rows.map(r => ({
+    name: nameMap.get(r.playerTag) || r.playerTag,
+    trophies: r.trophies,
+    wins: r.wins,
+    losses: r.losses,
+    donations: r.donations,
+  }));
 
   const embeds: EmbedBuilder[] = [];
   const totalW = deltas.reduce((s, d) => s + d.wins, 0);
