@@ -273,7 +273,7 @@ export async function syncCurrentWar(clanTag: string): Promise<void> {
       return;
     }
 
-    const startDate = parseSafeDate(race.periodLogs[0]?.startTime) ?? parseSafeDate(latestEntry.createdDate) ?? new Date();
+    const startDate = parseSafeDate(latestEntry.createdDate) ?? new Date();
 
     const warLog = await prisma.warLog.create({
       data: {
