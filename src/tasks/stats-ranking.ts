@@ -366,71 +366,183 @@ export async function publishStatsRanking(
     await addToMonthlyAccumulator(clanTag, monthlyEntries);
 
     // Rankings
-    const byDailyWR = [...deltas]
-      .filter((d) => d.wins + d.losses > 0)
-      .sort((a, b) => b.winRate - a.winRate || b.wins - a.wins);
-    const byDonations = [...deltas].sort((a, b) => b.donations - a.donations);
-    const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies);
-    const byFame = [...warStats].sort((a, b) => b.fame - a.fame);
+    const byTrophies = [...deltas]
+      .filter(d => d.trophies !== 0)
+      .sort((a, b) => b.trophies - a.trophies);
+    const byBattles = [...deltas]
+      .filter(d => d.wins + d.losses > 0)
+      .sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
+    const byDonations = [...deltas]
+      .filter(d => d.donations > 0)
+      .sort((a, b) => b.donations - a.donations);
+    const byFame = [...warStats]
+      .filter(p => p.fame > 0)
+      .sort((a, b) => b.fame - a.fame);
 
     const totalDailyW = deltas.reduce((s, d) => s + d.wins, 0);
     const totalDailyL = deltas.reduce((s, d) => s + d.losses, 0);
     const totalDonations = deltas.reduce((s, d) => s + d.donations, 0);
     const totalFame = warStats.reduce((s, p) => s + p.fame, 0);
 
-    // Publish
-    const header = new EmbedBuilder()
-      .setTitle(`📊 Ranking del Clan — ${yesterdayLabel}`)
+    function formatList(items: { name: string }[], fmt: (item: unknown, i: number) => string, limit = 5): string {
+      if (items.length === 0) return '_Sin datos_';
+      return items.slice(0, limit).map((item, i) => fmt(item, i)).join('\n');
+    }
+
+    // ── Single Embed ──
+    const embed = new EmbedBuilder()
+      .setTitle(`📊 Ranking Diario — ${yesterdayLabel}`)
       .setColor(EMBED_COLOR)
-      .setDescription(
-        `**${members.length}** jugadores | ✅ ${totalDailyW}V ❌ ${totalDailyL}D ayer | 💎 ${totalDonations.toLocaleString()} donaciones`
-      )
-      .setFooter({ text: `Actualizado cada 24h | Errores: ${errors}` })
+      .setFooter({ text: `Midnight → Midnight | Errores: ${errors}` })
       .setTimestamp();
-    await channel.send({ embeds: [header] });
 
-    if (byDailyWR.length > 0) {
-      const wrLines = byDailyWR.map((d, i) =>
-        `**${medal(i)}** **${d.name}**\n᛫ ${d.wins}V / ${d.losses}D — ${d.winRate}% WR`
-      );
-      const cols = formatTwoColumns(wrLines, 10);
-      const wr = new EmbedBuilder()
-        .setTitle('⚔️ Victorias / Derrotas')
-        .setColor(0xE74C3C)
-        .addFields(
-          { name: '\u200b', value: cols.left, inline: true },
-          { name: '\u200b', value: cols.right, inline: true },
-        );
-      await channel.send({ embeds: [wr] });
-    }
+    let desc = `**${members.length}** jugadores | ✅ ${totalDailyW}V ❌ ${totalDailyL}D | 💎 ${totalDonations.toLocaleString()} donaciones | ⚡ ${totalFame.toLocaleString()} fama\n`;
 
-    if (byDonations.some((d) => d.donations > 0)) {
-      const donLines = byDonations.map((d, i) =>
-        `**${medal(i)}** **${d.name}**\n᛫ ${d.donations.toLocaleString()} 💎 donadas`
-      );
-      const cols = formatTwoColumns(donLines, 10);
-      const don = new EmbedBuilder()
-        .setTitle('💎 Donaciones de Cartas')
-        .setColor(0xFF69B4)
-        .addFields(
-          { name: '\u200b', value: cols.left, inline: true },
-          { name: '\u200b', value: cols.right, inline: true },
-        );
-      await channel.send({ embeds: [don] });
-    }
+    // Copas
+    desc += `\n**--- Top Diario Copas ---**\n`;
+    desc += formatList(byTrophies, (d: unknown, i: number) => {
+      const dd = d as { name: string; trophies: number };
+      const sign = dd.trophies > 0 ? '+' : '';
+      return `${medal(i)} **${dd.name}** — ${sign}${dd.trophies}`;
+    });
+
+    // Batallas
+    desc += `\n\n**--- Top Diario Batallas ---**\n`;
+    desc += formatList(byBattles, (d: unknown, i: number) => {
+      const dd = d as { name: string; wins: number; losses: number };
+      return `${medal(i)} **${dd.name}** — ${dd.wins + dd.losses} batallas (${dd.wins}V/${dd.losses}D)`;
+    });
+
+    // Donaciones
+    desc += `\n\n**--- Top Diario Donaciones ---**\n`;
+    desc += formatList(byDonations, (d: unknown, i: number) => {
+      const dd = d as { name: string; donations: number };
+      return `${medal(i)} **${dd.name}** — ${dd.donations.toLocaleString()} 💎`;
+    });
+
+    // Guerra
+    desc += `\n\n**--- Top Diario Guerra ---**\n`;
+    desc += formatList(byFame, (p: unknown, i: number) => {
+      const pp = p as { name: string; fame: number };
+      return `${medal(i)} **${pp.name}** — ${pp.fame.toLocaleString()} ⚡ fama`;
+    });
+
+    embed.setDescription(desc);
+    await channel.send({ embeds: [embed] });
 
     logger.info(`Stats ranking published to ${channel.name} (${current.length} players)`);
   } catch (err) {
     logger.error(`Error publishing stats: ${(err as Error).message}`);
   }
 }
-export function startStatsRanking(client: Client): void {
-  // Bootstrap: save first midnight snapshot now
-  runMidnightSnapshot().then(() => {
-    logger.info('Bootstrap: initial midnight snapshot saved');
-  }).catch(err => {
-    logger.error('Bootstrap snapshot failed:', (err as Error).message);
+
+export async function publishWeeklyRanking(
+  client: Client,
+  clanTag: string,
+  guildId: string,
+): Promise<void> {
+  const accKey = `weekly_acc_${clanTag}`;
+  const accCfg = await prisma.botConfig.findUnique({ where: { key: accKey } });
+  if (!accCfg) return;
+
+  let acc: { tag: string; name: string; wins: number; losses: number; donations: number; trophies: number; fame: number }[];
+  try { acc = JSON.parse(accCfg.value); } catch { return; }
+  if (!acc.length) return;
+
+  const members = await getClanMembers(clanTag);
+
+  const byTrophies = [...acc]
+    .filter(e => e.trophies !== 0)
+    .sort((a, b) => b.trophies - a.trophies);
+  const byBattles = [...acc]
+    .filter(e => e.wins + e.losses > 0)
+    .sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
+  const byDonations = [...acc]
+    .filter(e => e.donations > 0)
+    .sort((a, b) => b.donations - a.donations);
+  const byFame = [...acc]
+    .filter(e => e.fame > 0)
+    .sort((a, b) => b.fame - a.fame);
+
+  function fmtList(items: { name: string }[], fmt: (item: unknown, i: number) => string, limit = 5): string {
+    if (items.length === 0) return '_Sin datos_';
+    return items.slice(0, limit).map((item, i) => fmt(item, i)).join('\n');
+  }
+
+  const totalW = acc.reduce((s, e) => s + e.wins, 0);
+  const totalL = acc.reduce((s, e) => s + e.losses, 0);
+  const totalD = acc.reduce((s, e) => s + e.donations, 0);
+  const totalF = acc.reduce((s, e) => s + e.fame, 0);
+
+  const embed = new EmbedBuilder()
+    .setTitle('📊 Ranking Semanal')
+    .setColor(EMBED_COLOR)
+    .setFooter({ text: 'Semana completa' })
+    .setTimestamp();
+
+  let desc = `**${members.length}** jugadores | ✅ ${totalW}V ❌ ${totalL}D | 💎 ${totalD.toLocaleString()} donaciones | ⚡ ${totalF.toLocaleString()} fama\n`;
+
+  desc += `\n**--- Top Semanal Copas ---**\n`;
+  desc += fmtList(byTrophies, (d: unknown, i: number) => {
+    const dd = d as { name: string; trophies: number };
+    const sign = dd.trophies > 0 ? '+' : '';
+    return `${medal(i)} **${dd.name}** — ${sign}${dd.trophies}`;
   });
+
+  desc += `\n\n**--- Top Semanal Batallas ---**\n`;
+  desc += fmtList(byBattles, (d: unknown, i: number) => {
+    const dd = d as { name: string; wins: number; losses: number };
+    return `${medal(i)} **${dd.name}** — ${dd.wins + dd.losses} batallas (${dd.wins}V/${dd.losses}D)`;
+  });
+
+  desc += `\n\n**--- Top Semanal Donaciones ---**\n`;
+  desc += fmtList(byDonations, (d: unknown, i: number) => {
+    const dd = d as { name: string; donations: number };
+    return `${medal(i)} **${dd.name}** — ${dd.donations.toLocaleString()} 💎`;
+  });
+
+  desc += `\n\n**--- Top Semanal Guerra ---**\n`;
+  desc += fmtList(byFame, (p: unknown, i: number) => {
+    const pp = p as { name: string; fame: number };
+    return `${medal(i)} **${pp.name}** — ${pp.fame.toLocaleString()} ⚡ fama`;
+  });
+
+  embed.setDescription(desc);
+
+  const channelKey = `channel_ranking_${guildId}`;
+  const cfg = await prisma.botConfig.findUnique({ where: { key: channelKey } });
+  if (!cfg) return;
+
+  try {
+    const channel = (await client.channels.fetch(cfg.value)) as TextChannel;
+    if (!channel) return;
+    await channel.send({ embeds: [embed] });
+    logger.info(`Weekly ranking published for ${clanTag}`);
+
+    // Reset weekly accumulator after publishing
+    await prisma.botConfig.delete({ where: { key: accKey } });
+    logger.info(`Weekly accumulator reset for ${clanTag}`);
+  } catch (err) {
+    logger.error(`Error publishing weekly ranking: ${(err as Error).message}`);
+  }
+}
+export function startStatsRanking(client: Client): void {
+  // Bootstrap: reset counters and save first midnight snapshot
+  (async () => {
+    try {
+      const clans = await getAllClanConfigs();
+      for (const { clanTag } of clans) {
+        await prisma.botConfig.deleteMany({
+          where: { key: { in: [`weekly_acc_${clanTag}`, `daily_deltas_${clanTag}`] } },
+        });
+      }
+      logger.info('Bootstrap: daily and weekly counters reset to 0');
+    } catch (err) {
+      logger.warn('Bootstrap reset failed:', (err as Error).message);
+    }
+    await runMidnightSnapshot();
+    logger.info('Bootstrap: initial midnight snapshot saved');
+  })();
 
   // Midnight: full player data snapshot (baseline of the day)
   midnightTask = cron.schedule('0 0 * * *', async () => {
@@ -440,24 +552,30 @@ export function startStatsRanking(client: Client): void {
 
   // Every 15 min: lightweight copas update
   lightTask = cron.schedule('*/15 * * * *', async () => {
-    if (nowHour() === 0) return; // skip at midnight (full run handles it)
+    if (nowHour() === 0) return;
     await run15MinUpdate();
   });
 
-  // 9 AM: publish yesterday's complete ranking
+  // 9 AM daily: publish yesterday's complete ranking
   statsTask = cron.schedule('0 9 * * *', async () => {
-    logger.info('Stats ranking task: starting...');
+    logger.info('Daily ranking task: starting...');
     const clans = await getAllClanConfigs();
+    const now = new Date();
+    const isMonday = now.getDay() === 1;
+
     for (const { clanTag, guildId } of clans) {
       try {
         await publishStatsRanking(client, clanTag, guildId);
+        if (isMonday) {
+          await publishWeeklyRanking(client, clanTag, guildId);
+        }
       } catch (err) {
         logger.error(`Stats ranking failed for ${clanTag}: ${(err as Error).message}`);
       }
     }
   });
 
-  logger.info('Stats ranking: midnight snapshot (00:00) + 15min light update + publish (09:00)');
+  logger.info('Stats ranking: midnight (00:00) + 15min light + daily/weekly publish (09:00)');
 }
 
 export function stopStatsRanking(): void {

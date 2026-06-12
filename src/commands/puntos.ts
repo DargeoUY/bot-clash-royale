@@ -5,6 +5,7 @@ import { getPlayerPoints, getPointHistory, addPoints, getLeaderboard } from '../
 import { isValidPlayerTag, formatPlayerTag } from '../utils/validators';
 import { errorEmbed, successEmbed, EMBED_COLOR } from '../utils/embeds';
 import { publishStatsRanking } from '../tasks/stats-ranking';
+import { publishWeeklyRanking } from '../tasks/stats-ranking';
 
 async function ejecutarVer(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
@@ -202,7 +203,10 @@ export const ranking: BotCommand = {
         ),
     )
     .addSubcommand((sub) =>
-      sub.setName('stats').setDescription('Ranking: V/D, Donaciones, Copas, Guerra'),
+      sub.setName('stats').setDescription('Ranking diario: Copas, Batallas, Donaciones, Guerra'),
+    )
+    .addSubcommand((sub) =>
+      sub.setName('semanal').setDescription('Ranking semanal acumulado'),
     ),
   execute: async (interaction) => {
     const sub = interaction.options.getSubcommand();
@@ -211,9 +215,18 @@ export const ranking: BotCommand = {
       const clanTag = await getGuildClanTag(interaction.guildId!);
       try {
         await publishStatsRanking(interaction.client, clanTag, interaction.guildId!);
-        await interaction.editReply({ content: '✅ Ranking de stats publicado.' });
+        await interaction.editReply({ content: '✅ Ranking diario publicado.' });
       } catch {
         await interaction.editReply({ embeds: [errorEmbed('Error', 'No se pudo generar el ranking.')] });
+      }
+    } else if (sub === 'semanal') {
+      await interaction.deferReply();
+      const clanTag = await getGuildClanTag(interaction.guildId!);
+      try {
+        await publishWeeklyRanking(interaction.client, clanTag, interaction.guildId!);
+        await interaction.editReply({ content: '✅ Ranking semanal publicado.' });
+      } catch {
+        await interaction.editReply({ embeds: [errorEmbed('Error', 'No se pudo generar el ranking semanal.')] });
       }
     } else {
       await ejecutarRanking(interaction);
