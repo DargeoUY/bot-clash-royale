@@ -234,3 +234,17 @@ model AcumuladoSemanal {
   @@unique([playerTag, inicioSemana])
   @@index([clanTag])
 }
+
+model AcumuladoMensual {
+  id        Int      @id @default(autoincrement())
+  playerTag String   @db.VarChar(15)
+  mes       Int      // 1-12
+  anio      Int      // 2026
+  clanTag   String   @db.VarChar(15)
+  trofeos   Int      @default(0)
+  fama      Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([playerTag, mes, anio])
+  @@index([clanTag])
+}

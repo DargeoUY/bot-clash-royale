@@ -13,35 +13,40 @@ export async function publishMonthlyWinners(
   clanTag: string,
   guildId: string,
 ): Promise<void> {
-  const accKey = `monthly_acc_${clanTag}`;
-  const cfg = await prisma.botConfig.findUnique({ where: { key: accKey } });
-  if (!cfg) {
-    logger.info(`No monthly stats for ${clanTag} yet`);
+  const now = new Date();
+  const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth(); // January = 1 in DB
+  const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+
+  const rows = await prisma.acumuladoMensual.findMany({
+    where: { clanTag, mes: prevMonth, anio: year },
+  });
+  if (rows.length === 0) {
+    logger.info(`No monthly stats for ${clanTag} (${prevMonth}/${year})`);
     return;
   }
 
-  interface AccEntry { tag: string; name: string; trophies: number; fame: number; }
-  let acc: AccEntry[];
-  try { acc = JSON.parse(cfg.value); } catch { return; }
+  const players = await prisma.player.findMany({
+    where: { tag: { in: rows.map(r => r.playerTag) } },
+    select: { tag: true, name: true },
+  });
+  const nameMap = new Map(players.map(p => [p.tag, p.name]));
 
-  const byTrophies = [...acc]
-    .filter((e) => e.trophies > 0)
-    .sort((a, b) => b.trophies - a.trophies)
-    .slice(0, 10);
+  const acc = rows.map(r => ({
+    tag: r.playerTag,
+    name: nameMap.get(r.playerTag) || r.playerTag,
+    trophies: r.trofeos,
+    fame: r.fama,
+  }));
 
-  const byFame = [...acc]
-    .filter((e) => e.fame > 0)
-    .sort((a, b) => b.fame - a.fame)
-    .slice(0, 10);
-
+  const byTrophies = [...acc].filter(e => e.trophies > 0).sort((a, b) => b.trophies - a.trophies).slice(0, 10);
+  const byFame = [...acc].filter(e => e.fame > 0).sort((a, b) => b.fame - a.fame).slice(0, 10);
   if (byTrophies.length === 0 && byFame.length === 0) return;
 
   const guild = client.guilds.cache.get(guildId);
   if (!guild) return;
 
-  const now = new Date();
-  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const monthName = prevMonth.toLocaleString('es', { month: 'long', year: 'numeric' });
+  const prevMonthDate = new Date(year, prevMonth - 1, 1);
+  const monthName = prevMonthDate.toLocaleString('es', { month: 'long', year: 'numeric' });
 
   const embed = new EmbedBuilder()
     .setTitle(`🏆 Ranking Mensual — ${monthName}`)
@@ -53,10 +58,7 @@ export async function publishMonthlyWinners(
   const medal = (i: number) => i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`;
 
   if (byTrophies.length > 0) {
-    const lines = byTrophies.map((e, i) =>
-      `**${medal(i)} ${e.name}** — +${e.trophies} copas`
-    );
-    // Split into 2 columns
+    const lines = byTrophies.map((e, i) => `**${medal(i)} ${e.name}** — +${e.trophies} copas`);
     const half = Math.ceil(lines.length / 2);
     embed.addFields(
       { name: '🏆 Mayor Cantidad de Copas', value: lines.slice(0, half).join('\n') || '—', inline: true },
@@ -65,9 +67,7 @@ export async function publishMonthlyWinners(
   }
 
   if (byFame.length > 0) {
-    const lines = byFame.map((e, i) =>
-      `**${medal(i)} ${e.name}** — ${e.fame} fama`
-    );
+    const lines = byFame.map((e, i) => `**${medal(i)} ${e.name}** — ${e.fame} fama`);
     const half = Math.ceil(lines.length / 2);
     embed.addFields(
       { name: '⚔️ Participación en Guerra', value: lines.slice(0, half).join('\n') || '—', inline: true },
@@ -75,7 +75,6 @@ export async function publishMonthlyWinners(
     );
   }
 
-  // Send to Telegram
   if (isTelegramConfigured()) {
     let tgText = `<b>🏆 Ranking Mensual — ${monthName}</b>\n\n`;
     if (byTrophies.length > 0) {
@@ -94,10 +93,7 @@ export async function publishMonthlyWinners(
     await sendTelegramRanking(tgText);
   }
 
-  // Post to ranking channel
-  const channelCfg = await prisma.botConfig.findUnique({
-    where: { key: `channel_ranking_${guildId}` },
-  });
+  const channelCfg = await prisma.botConfig.findUnique({ where: { key: `channel_ranking_${guildId}` } });
   if (channelCfg) {
     try {
       const channel = (await client.channels.fetch(channelCfg.value)) as TextChannel;
@@ -105,8 +101,7 @@ export async function publishMonthlyWinners(
     } catch { /* ok */ }
   }
 
-  // Reset monthly accumulator
-  await prisma.botConfig.delete({ where: { key: accKey } });
+  await prisma.acumuladoMensual.deleteMany({ where: { clanTag, mes: prevMonth, anio: year } });
   logger.info(`Monthly winners published for ${clanTag} and accumulator reset`);
 }
 
@@ -114,48 +109,35 @@ export async function addToMonthlyAccumulator(
   clanTag: string,
   entries: { tag: string; name: string; trophies: number; fame: number }[],
 ): Promise<void> {
-  const accKey = `monthly_acc_${clanTag}`;
-  const existing = await prisma.botConfig.findUnique({ where: { key: accKey } });
+  const now = new Date();
+  const mes = now.getMonth() + 1;
+  const anio = now.getFullYear();
 
-  interface AccEntry { tag: string; name: string; trophies: number; fame: number; }
-  let acc: AccEntry[] = [];
-  if (existing) {
-    try { acc = JSON.parse(existing.value); } catch { acc = []; }
-  }
-
-  const map = new Map(acc.map((e) => [e.tag, e]));
   for (const e of entries) {
-    const prev = map.get(e.tag);
-    if (prev) {
-      prev.trophies += e.trophies;
-      prev.fame += e.fame;
-      prev.name = e.name;
+    const where = { playerTag_mes_anio: { playerTag: e.tag, mes, anio } };
+    const existing = await prisma.acumuladoMensual.findUnique({ where });
+    if (existing) {
+      await prisma.acumuladoMensual.update({
+        where,
+        data: { trofeos: { increment: e.trophies }, fama: { increment: e.fame } },
+      });
     } else {
-      map.set(e.tag, { ...e });
+      await prisma.acumuladoMensual.create({
+        data: { playerTag: e.tag, mes, anio, clanTag, trofeos: e.trophies, fama: e.fame },
+      });
     }
   }
-
-  await prisma.botConfig.upsert({
-    where: { key: accKey },
-    update: { value: JSON.stringify([...map.values()]) },
-    create: { key: accKey, value: JSON.stringify([...map.values()]) },
-  });
 }
 
 export function startMonthlyWinners(client: Client): void {
-  // 1st of every month at 12:00 PM UTC
   monthlyTask = cron.schedule('0 12 1 * *', async () => {
     logger.info('Monthly winners task: starting...');
     const clans = await getAllClanConfigs();
     for (const { clanTag, guildId } of clans) {
-      try {
-        await publishMonthlyWinners(client, clanTag, guildId);
-      } catch (err) {
-        logger.error(`Monthly winners failed for ${clanTag}: ${(err as Error).message}`);
-      }
+      try { await publishMonthlyWinners(client, clanTag, guildId); }
+      catch (err) { logger.error(`Monthly winners failed for ${clanTag}: ${(err as Error).message}`); }
     }
   });
-
   logger.info('Monthly winners task started (1st of month at 12:00 PM UTC)');
 }
 
