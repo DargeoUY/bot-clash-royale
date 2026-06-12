@@ -154,7 +154,7 @@ async function updateRunningDeltas(clanTag: string, stats: PlayerStats[]): Promi
     const dw = base ? s.wins - base.wins : 0;
     const dl = base ? s.losses - base.losses : 0;
     const dd = base ? s.donations - base.donations : 0;
-    const dt = s.trophies - (base?.trophies || 0);
+    const dt = Math.max(0, s.trophies - (base?.trophies || 0));
 
     deltas.push({
       tag: s.tag,
@@ -351,7 +351,7 @@ export async function publishStatsRanking(
       wins: d.wins,
       losses: d.losses,
       donations: d.donations,
-      trophies: d.trophies,
+      trophies: Math.max(0, d.trophies),
       fame: warStats.find((w) => w.tag === d.tag)?.fame || 0,
     }));
     await addToWeeklyAccumulator(clanTag, weeklyEntries);
@@ -360,14 +360,14 @@ export async function publishStatsRanking(
     const monthlyEntries = deltas.map((d) => ({
       tag: d.tag,
       name: d.name,
-      trophies: d.trophies,
+      trophies: Math.max(0, d.trophies),
       fame: warStats.find((w) => w.tag === d.tag)?.fame || 0,
     }));
     await addToMonthlyAccumulator(clanTag, monthlyEntries);
 
     // Rankings
     const byTrophies = [...deltas]
-      .filter(d => d.trophies !== 0)
+      .filter(d => d.trophies > 0)
       .sort((a, b) => b.trophies - a.trophies);
     const byBattles = [...deltas]
       .filter(d => d.wins + d.losses > 0)

@@ -177,12 +177,11 @@ export async function handleTelegramCommand(
         const deltas = JSON.parse(deltaCfg.value) as { name: string; trophies: number; wins: number; losses: number; donations: number }[];
 
         // Copas
-        const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies).slice(0, 5);
+        const byTrophies = [...deltas].filter(d => d.trophies > 0).sort((a, b) => b.trophies - a.trophies).slice(0, 5);
         if (byTrophies.length > 0) {
           let m = '<b>--- Top Diario Copas ---</b>\n';
           byTrophies.forEach((d, i) => {
-            const sign = d.trophies > 0 ? '+' : '';
-            m += `${medal(i)} <b>${d.name}</b> — ${sign}${d.trophies}\n`;
+            m += `${medal(i)} <b>${d.name}</b> — +${d.trophies}\n`;
           });
           extra.push(m);
         }
