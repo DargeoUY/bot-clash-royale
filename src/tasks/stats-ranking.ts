@@ -559,25 +559,30 @@ export async function publishWeeklyRanking(
   }
 }
 export function startStatsRanking(client: Client): void {
-  // Bootstrap: reset counters and save first midnight snapshot
+  // Bootstrap: init if first time, otherwise preserve data
   (async () => {
     try {
       const clans = await getAllClanConfigs();
       for (const { clanTag } of clans) {
-        // Delete both # and non-# variants (clean up old keys)
-        await prisma.botConfig.deleteMany({
-          where: { key: { startsWith: 'weekly_acc_' } },
-        });
-        await prisma.botConfig.deleteMany({
-          where: { key: { startsWith: 'daily_deltas_' } },
-        });
+        const existing = await loadMidnightSnapshot(clanTag, todayKey());
+        if (!existing) {
+          // First time: clean old keys and start fresh
+          await prisma.botConfig.deleteMany({
+            where: { key: { startsWith: 'weekly_acc_' } },
+          });
+          await prisma.botConfig.deleteMany({
+            where: { key: { startsWith: 'daily_deltas_' } },
+          });
+          logger.info(`Bootstrap: first run for ${clanTag}, counters reset to 0`);
+        } else {
+          logger.info(`Bootstrap: ${clanTag} already initialized (${existing.size} players), data preserved`);
+        }
       }
-      logger.info('Bootstrap: all daily and weekly counters reset to 0');
     } catch (err) {
-      logger.warn('Bootstrap reset failed:', (err as Error).message);
+      logger.warn('Bootstrap check failed:', (err as Error).message);
     }
     await runMidnightSnapshot();
-    logger.info('Bootstrap: initial midnight snapshot saved');
+    logger.info('Bootstrap: midnight snapshot saved/refreshed');
   })();
 
   // Midnight: full player data snapshot (baseline of the day)
