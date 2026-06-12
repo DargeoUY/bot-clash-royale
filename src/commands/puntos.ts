@@ -3,10 +3,11 @@ import { BotCommand } from '../types';
 import { getGuildClanTag } from '../utils/guild';
 import { getPlayerPoints, getPointHistory, addPoints, getLeaderboard } from '../services/points.service';
 import { isValidPlayerTag, formatPlayerTag } from '../utils/validators';
-import { errorEmbed, successEmbed, EMBED_COLOR } from '../utils/embeds';
+import { errorEmbed, successEmbed, EMBED_COLOR, isAdmin } from '../utils/embeds';
 import { publishStatsRanking } from '../tasks/stats-ranking';
 import { publishWeeklyRanking } from '../tasks/stats-ranking';
 import { publishCachedRanking } from '../tasks/stats-ranking';
+import { buildAdminRankingEmbeds } from '../tasks/stats-ranking';
 
 async function ejecutarVer(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
@@ -212,11 +213,20 @@ export const ranking: BotCommand = {
   execute: async (interaction) => {
     const sub = interaction.options.getSubcommand();
     if (sub === 'stats') {
-      await interaction.deferReply();
+      await interaction.deferReply({ ephemeral: isAdmin(interaction) });
       const clanTag = await getGuildClanTag(interaction.guildId!);
       try {
-        await publishCachedRanking(interaction.client, clanTag, interaction.guildId!);
-        await interaction.editReply({ content: '✅ Ranking diario publicado.' });
+        if (isAdmin(interaction)) {
+          const embeds = await buildAdminRankingEmbeds(clanTag);
+          if (embeds.length === 0) {
+            await interaction.editReply({ content: 'Sin datos todavía.' });
+          } else {
+            await interaction.editReply({ embeds: embeds.slice(0, 10) });
+          }
+        } else {
+          await publishCachedRanking(interaction.client, clanTag, interaction.guildId!);
+          await interaction.followUp({ content: '✅ Ranking diario publicado.', ephemeral: true });
+        }
       } catch {
         await interaction.editReply({ embeds: [errorEmbed('Error', 'No se pudo generar el ranking.')] });
       }

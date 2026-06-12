@@ -685,6 +685,59 @@ export async function publishCachedRanking(
   }
 }
 
+// Returns embeds with ALL players from cache (for admin private view)
+export async function buildAdminRankingEmbeds(clanTag: string): Promise<EmbedBuilder[]> {
+  const deltaCfg = await prisma.botConfig.findUnique({
+    where: { key: `daily_deltas_${clanTag}` },
+  });
+  if (!deltaCfg) return [];
+
+  let deltas: { name: string; trophies: number; wins: number; losses: number; donations: number }[];
+  try { deltas = JSON.parse(deltaCfg.value); } catch { return []; }
+  if (!deltas.length) return [];
+
+  const embeds: EmbedBuilder[] = [];
+  const totalW = deltas.reduce((s, d) => s + d.wins, 0);
+  const totalL = deltas.reduce((s, d) => s + d.losses, 0);
+  const totalD = deltas.reduce((s, d) => s + d.donations, 0);
+
+  const header = new EmbedBuilder()
+    .setTitle('📊 Ranking Completo (admin)')
+    .setColor(EMBED_COLOR)
+    .setDescription(`**${deltas.length}** jugadores | ✅ ${totalW}V ❌ ${totalL}D | 💎 ${totalD.toLocaleString()} donaciones`)
+    .setTimestamp();
+  embeds.push(header);
+
+  const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies);
+  if (byTrophies.length > 0) {
+    const trophiesDesc = byTrophies.map((d, i) => {
+      const sign = d.trophies > 0 ? '+' : '';
+      return `${medal(i)} **${d.name}** — ${sign}${d.trophies}`;
+    }).join('\n');
+    for (let i = 0; i < trophiesDesc.length; i += 1024) {
+      embeds.push(new EmbedBuilder().setTitle('--- Copas (todos) ---').setColor(0xFFD700).setDescription(trophiesDesc.slice(i, i + 1024)));
+    }
+  }
+
+  const byBattles = [...deltas].sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
+  if (byBattles.length > 0) {
+    const battlesDesc = byBattles.map((d, i) => `${medal(i)} **${d.name}** — ${d.wins + d.losses} batallas (${d.wins}V/${d.losses}D)`).join('\n');
+    for (let i = 0; i < battlesDesc.length; i += 1024) {
+      embeds.push(new EmbedBuilder().setTitle('--- Batallas (todos) ---').setColor(0xE74C3C).setDescription(battlesDesc.slice(i, i + 1024)));
+    }
+  }
+
+  const byDonations = [...deltas].sort((a, b) => b.donations - a.donations);
+  if (byDonations.length > 0) {
+    const donDesc = byDonations.map((d, i) => `${medal(i)} **${d.name}** — ${d.donations.toLocaleString()} 💎`).join('\n');
+    for (let i = 0; i < donDesc.length; i += 1024) {
+      embeds.push(new EmbedBuilder().setTitle('--- Donaciones (todos) ---').setColor(0xFF69B4).setDescription(donDesc.slice(i, i + 1024)));
+    }
+  }
+
+  return embeds;
+}
+
 export function stopStatsRanking(): void {
   if (statsTask) statsTask.stop();
   if (midnightTask) midnightTask.stop();

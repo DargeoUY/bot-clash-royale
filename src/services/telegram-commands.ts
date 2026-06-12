@@ -161,12 +161,56 @@ export async function handleTelegramCommand(
     const err = await requireRegistration(userId);
     if (err) return { text: err };
 
+    const player = await prisma.player.findFirst({
+      where: { telegramId: String(userId) },
+      select: { role: true },
+    });
+    const isLeader = player?.role === 'leader' || player?.role === 'coLeader';
+
     const clanTag = await getClanForChat(chatId);
 
     interface AccEntry { tag: string; name: string; wins: number; losses: number; donations: number; trophies: number; fame: number; }
 
     const extra: string[] = [];
-    let header = '<b>📊 Ranking del Clan</b>';
+    let header: string;
+
+    // Admin: show ALL players privately
+    if (isLeader) {
+      let allPrivate = '<b>📊 Ranking Completo — Todos los jugadores</b>\n\n';
+
+      try {
+        const deltaCfg = await prisma.botConfig.findUnique({
+          where: { key: `daily_deltas_${clanTag}` },
+        });
+        if (deltaCfg) {
+          const deltas = JSON.parse(deltaCfg.value) as { name: string; trophies: number; wins: number; losses: number; donations: number }[];
+
+          const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies);
+          allPrivate += '<b>--- Copas (todos) ---</b>\n';
+          byTrophies.forEach((d, i) => {
+            const sign = d.trophies > 0 ? '+' : '';
+            allPrivate += `${i + 1}. <b>${d.name}</b> — ${sign}${d.trophies}\n`;
+          });
+
+          const byBattles = [...deltas].sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
+          allPrivate += '\n<b>--- Batallas (todos) ---</b>\n';
+          byBattles.forEach((d, i) => {
+            allPrivate += `${i + 1}. <b>${d.name}</b> — ${d.wins + d.losses} batallas (${d.wins}V/${d.losses}D)\n`;
+          });
+
+          const byDons = [...deltas].sort((a, b) => b.donations - a.donations);
+          allPrivate += '\n<b>--- Donaciones (todos) ---</b>\n';
+          byDons.forEach((d, i) => {
+            allPrivate += `${i + 1}. <b>${d.name}</b> — ${d.donations.toLocaleString()} 💎\n`;
+          });
+        }
+      } catch { /* ok */ }
+
+      return { text: '📊 Ranking completo enviado al privado.', privateText: allPrivate };
+    }
+
+    // Non-admin: top 5 per category (current behavior)
+    header = '<b>📊 Ranking del Clan</b>';
 
     // Daily deltas
     try {
