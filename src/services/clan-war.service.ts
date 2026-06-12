@@ -225,6 +225,10 @@ export async function syncCurrentWar(clanTag: string): Promise<void> {
     const latestEntry = periodLog.items[0];
     if (!latestEntry) return;
 
+    const clanStanding = latestEntry.standings.find(
+      (s) => s.clan.tag === clanTag,
+    );
+
     const existingWar = await prisma.warLog.findFirst({
       where: {
         clanTag,
@@ -268,10 +272,6 @@ export async function syncCurrentWar(clanTag: string): Promise<void> {
       logger.debug(`War updated: season ${latestEntry.seasonId}, ${clanStanding?.clan?.participants?.length ?? 0} participants`);
       return;
     }
-
-    const clanStanding = latestEntry.standings.find(
-      (s) => s.clan.tag === clanTag,
-    );
 
     const startDate = parseSafeDate(race.periodLogs[0]?.startTime) ?? parseSafeDate(latestEntry.createdDate) ?? new Date();
 

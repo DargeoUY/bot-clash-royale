@@ -41,7 +41,6 @@ async function loadWeeklyWithNames(clanTag: string): Promise<{ tag: string; name
   return rows.map(r => ({ tag: r.playerTag, name: nameMap.get(r.playerTag) || r.playerTag, wins: r.partidasGanadas, losses: r.partidasPerdidas, donations: r.cartasDonadas, trophies: r.trofeos, fame: r.fama }));
 }
 
-function checkCooldown(userId: number): boolean { const last = cooldowns.get(userId); if (last && Date.now() - last < COOLDOWN_MS) return false; cooldowns.set(userId, Date.now()); return true; }
 function cleanTag(tag: string): string { return tag.startsWith('#') ? tag : `#${tag}`; }
 function medal(i: number): string { return i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`; }
 
