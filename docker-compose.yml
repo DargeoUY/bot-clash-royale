@@ -4,7 +4,7 @@ services:
     env_file: .env
     depends_on:
       mysql:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
     network_mode: host
     volumes:
@@ -23,12 +23,6 @@ services:
     volumes:
       - mysqldata:/var/lib/mysql
     restart: unless-stopped
-    healthcheck:
-      test: ['CMD-SHELL', 'mysqladmin ping -h localhost --silent']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
 
 volumes:
   mysqldata:
