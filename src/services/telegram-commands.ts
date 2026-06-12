@@ -7,6 +7,12 @@ function todayKey(): string {
   return new Date().toISOString().split('T')[0];
 }
 
+function yesterdayKey(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+}
+
 function getMonday(): string {
   const d = new Date();
   d.setDate(d.getDate() - d.getDay() + 1);
@@ -17,9 +23,15 @@ const cooldowns = new Map<number, number>();
 const COOLDOWN_MS = 10_000;
 
 async function loadDeltasWithNames(clanTag: string): Promise<{ tag: string; name: string; wins: number; losses: number; donations: number; trophies: number }[]> {
-  const rows = await prisma.dailyDelta.findMany({
+  // Try today, fall back to yesterday (full data from 9 AM publish)
+  let rows = await prisma.dailyDelta.findMany({
     where: { clanTag, date: todayKey() },
   });
+  if (rows.length === 0) {
+    rows = await prisma.dailyDelta.findMany({
+      where: { clanTag, date: yesterdayKey() },
+    });
+  }
   if (rows.length === 0) return [];
 
   const players = await prisma.player.findMany({

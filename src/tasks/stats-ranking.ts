@@ -151,16 +151,26 @@ async function updateRunningDeltas(clanTag: string, stats: PlayerStats[]): Promi
   const date = todayKey();
   for (const s of stats) {
     const base = midnight.get(s.tag);
-    const dw = base ? Math.max(0, s.wins - base.wins) : 0;
-    const dl = base ? Math.max(0, s.losses - base.losses) : 0;
-    const dd = base ? Math.max(0, s.donations - base.donations) : 0;
     const dt = Math.max(0, s.trophies - (base?.trophies || 0));
 
-    await prisma.dailyDelta.upsert({
+    // Only update trophies; preserve wins/losses/donations if already set by publishStatsRanking
+    const existing = await prisma.dailyDelta.findUnique({
       where: { playerTag_date: { playerTag: s.tag, date } },
-      create: { playerTag: s.tag, date, clanTag, wins: dw, losses: dl, donations: dd, trophies: dt },
-      update: { wins: dw, losses: dl, donations: dd, trophies: dt },
     });
+
+    if (existing) {
+      await prisma.dailyDelta.update({
+        where: { playerTag_date: { playerTag: s.tag, date } },
+        data: { trophies: dt },
+      });
+    } else {
+      const dw = base ? Math.max(0, s.wins - base.wins) : 0;
+      const dl = base ? Math.max(0, s.losses - base.losses) : 0;
+      const dd = base ? Math.max(0, s.donations - base.donations) : 0;
+      await prisma.dailyDelta.create({
+        data: { playerTag: s.tag, date, clanTag, wins: dw, losses: dl, donations: dd, trophies: dt },
+      });
+    }
   }
 }
 
@@ -642,10 +652,16 @@ export async function publishCachedRanking(
   clanTag: string,
   guildId: string,
 ): Promise<void> {
-  const today = todayKey();
-  const rows = await prisma.dailyDelta.findMany({
-    where: { clanTag, date: today },
+  // Try today first, fall back to yesterday (which has full data from 9 AM publish)
+  let rows = await prisma.dailyDelta.findMany({
+    where: { clanTag, date: todayKey() },
   });
+  const usedDate = rows.length > 0 ? todayKey() : yesterdayKey();
+  if (rows.length === 0) {
+    rows = await prisma.dailyDelta.findMany({
+      where: { clanTag, date: yesterdayKey() },
+    });
+  }
   if (rows.length === 0) {
     logger.warn(`No cached deltas for ${clanTag}`);
     return;
@@ -683,7 +699,7 @@ export async function publishCachedRanking(
     if (!channel) return;
 
     const header = new EmbedBuilder()
-      .setTitle('📊 Ranking Diario (desde caché)')
+      .setTitle(`📊 Ranking Diario${usedDate !== todayKey() ? ' (ayer)' : ''} (desde caché)`)
       .setColor(EMBED_COLOR)
       .setDescription(`${deltas.length} jugadores | ✅ ${totalW}V ❌ ${totalL}D | 💎 ${totalD.toLocaleString()} donaciones`)
       .setTimestamp();
@@ -736,10 +752,16 @@ export async function publishCachedRanking(
 
 // Returns embeds with ALL players from DB (for admin private view)
 export async function buildAdminRankingEmbeds(clanTag: string): Promise<EmbedBuilder[]> {
-  const today = todayKey();
-  const rows = await prisma.dailyDelta.findMany({
-    where: { clanTag, date: today },
+  // Try today, fall back to yesterday (full data from 9 AM publish)
+  let rows = await prisma.dailyDelta.findMany({
+    where: { clanTag, date: todayKey() },
   });
+  const usedDate = rows.length > 0 ? todayKey() : yesterdayKey();
+  if (rows.length === 0) {
+    rows = await prisma.dailyDelta.findMany({
+      where: { clanTag, date: yesterdayKey() },
+    });
+  }
   if (rows.length === 0) return [];
 
   const players = await prisma.player.findMany({
