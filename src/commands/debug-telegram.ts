@@ -15,7 +15,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
 
   const configured = isTelegramConfigured();
   const tokenPreview = config.TELEGRAM_BOT_TOKEN
-    ? `${config.TELEGRAM_BOT_TOKEN.substring(0, 10)}...${config.TELEGRAM_BOT_TOKEN.substring(config.TELEGRAM_BOT_TOKEN.length - 10)}`
+    ? `${config.TELEGRAM_BOT_TOKEN.substring(0, 5)}...(${config.TELEGRAM_BOT_TOKEN.length} chars)`
     : 'NO CONFIGURADO (TELEGRAM_BOT_TOKEN en .env)';
   const chatId = chatCfg?.value || 'NO CONFIGURADO';
 

@@ -11,6 +11,16 @@ function getMonday(): string { const d = new Date(); d.setDate(d.getDate() - d.g
 
 const cooldowns = new Map<number, number>();
 const COOLDOWN_MS = 10_000;
+const COOLDOWN_CLEANUP_MS = 60_000 * 5;
+
+function checkCooldown(userId: number): boolean { const last = cooldowns.get(userId); if (last && Date.now() - last < COOLDOWN_MS) return false; cooldowns.set(userId, Date.now()); return true; }
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of cooldowns) {
+    if (now - val > COOLDOWN_CLEANUP_MS) cooldowns.delete(key);
+  }
+}, COOLDOWN_CLEANUP_MS);
 
 async function loadDeltasWithNames(clanTag: string): Promise<{ tag: string; name: string; wins: number; losses: number; donations: number; trophies: number }[]> {
   const f = fechaHoy();
@@ -52,7 +62,7 @@ export interface TgReply { text: string; privateText?: string; extraMessages?: s
 
 export async function handleTelegramCommand(chatId: number, userId: number, text: string, isGroup: boolean): Promise<TgReply | null> {
   const parts = text.trim().split(/\s+/);
-  const cmd = parts[0].toLowerCase();
+  const cmd = parts[0].toLowerCase().split('@')[0];
 
   if (cmd === '/start' || cmd === '/help') {
     let msg = '<b>Comandos disponibles</b>\n\n';

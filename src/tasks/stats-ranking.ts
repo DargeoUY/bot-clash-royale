@@ -35,8 +35,10 @@ const nowHour = () => new Date().getHours();
 async function loadMidnightSnapshot(clanTag: string, fecha: { dia: number; mes: number; anio: number }): Promise<Map<string, PlayerStats> | null> {
   const rows = await prisma.puntoGuardado.findMany({ where: { clanTag, ...fechaToWhere(fecha) } });
   if (rows.length === 0) return null;
+  const players = await prisma.player.findMany({ where: { tag: { in: rows.map(r => r.playerTag) } }, select: { tag: true, name: true } });
+  const nameMap = new Map(players.map(p => [p.tag, p.name]));
   const map = new Map<string, PlayerStats>();
-  for (const r of rows) map.set(r.playerTag, { tag: r.playerTag, name: '', wins: r.partidasGanadas, losses: r.partidasPerdidas, donations: r.cartasDonadas, trophies: r.trofeos });
+  for (const r of rows) map.set(r.playerTag, { tag: r.playerTag, name: nameMap.get(r.playerTag) || r.playerTag, wins: r.partidasGanadas, losses: r.partidasPerdidas, donations: r.cartasDonadas, trophies: r.trofeos });
   return map;
 }
 
@@ -87,13 +89,13 @@ async function updateRunningDeltas(clanTag: string, stats: PlayerStats[]): Promi
     const base = midnight.get(s.tag);
     const dt = Math.max(0, s.trophies - (base?.trophies || 0));
     const where = { playerTag_dia_mes_anio: { playerTag: s.tag, dia: f.dia, mes: f.mes, anio: f.anio } };
-    const existing = await prisma.deltaDiario.findUnique({ where });
-    if (existing) {
-      await prisma.deltaDiario.update({ where, data: { trofeos: dt } });
-    } else {
-      const dw = base ? Math.max(0, s.wins - base.wins) : 0;
-      const dl = base ? Math.max(0, s.losses - base.losses) : 0;
-      const dd = base ? Math.max(0, s.donations - base.donations) : 0;
+const existing = await prisma.deltaDiario.findUnique({ where });
+     if (existing) {
+       await prisma.deltaDiario.update({ where, data: { trofeos: dt } });
+     } else {
+       const dw = base ? Math.max(0, s.wins - base.wins) : 0;
+       const dl = base ? Math.max(0, s.losses - base.losses) : 0;
+       const dd = base ? Math.max(0, s.donations - base.donations) : 0;
       await prisma.deltaDiario.create({ data: { playerTag: s.tag, dia: f.dia, mes: f.mes, anio: f.anio, clanTag, partidasGanadas: dw, partidasPerdidas: dl, cartasDonadas: dd, trofeos: dt } });
     }
   }
@@ -162,7 +164,7 @@ export async function publishStatsRanking(client: Client, clanTag: string, guild
     for (const [tag, today] of todaySnap) {
       const yesterday = yesterdaySnap.get(tag);
       if (!yesterday) continue;
-      const dw = today.wins - yesterday.wins; const dl = today.losses - yesterday.losses; const dd = today.donations - yesterday.donations; const dt = today.trophies - yesterday.trophies;
+      const dw = Math.max(0, today.wins - yesterday.wins); const dl = Math.max(0, today.losses - yesterday.losses); const dd = Math.max(0, today.donations - yesterday.donations); const dt = Math.max(0, today.trophies - yesterday.trophies);
       const total = dw + dl; const wr = total > 0 ? Math.round((dw / total) * 100) : 0;
       deltas.push({ tag, name: today.name, wins: dw, losses: dl, winRate: wr, donations: dd, trophies: dt });
     }
@@ -252,8 +254,11 @@ export function startStatsRanking(client: Client): void {
       for (const { clanTag } of clans) {
         const f = fechaHoy();
         const existing = await prisma.puntoGuardado.findFirst({ where: { clanTag, dia: f.dia, mes: f.mes, anio: f.anio } });
-        if (!existing) { await prisma.deltaDiario.deleteMany({ where: { clanTag } }); await prisma.acumuladoSemanal.deleteMany({ where: { clanTag } }); logger.info(`Bootstrap: first run for ${clanTag}, counters reset to 0`); }
-        else { logger.info(`Bootstrap: ${clanTag} already initialized, data preserved`); }
+        if (!existing) {
+          logger.info(`Bootstrap: first run for ${clanTag}, initializing snapshot (preserving existing deltas/accumulators)`);
+        } else {
+          logger.info(`Bootstrap: ${clanTag} already initialized, data preserved`);
+        }
       }
     } catch (err) { logger.warn('Bootstrap check failed:', (err as Error).message); }
     await runMidnightSnapshot();

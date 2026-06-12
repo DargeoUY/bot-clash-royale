@@ -46,6 +46,11 @@ async function ejecutarVer(interaction: ChatInputCommandInteraction): Promise<vo
 }
 
 async function ejecutarBonus(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!isAdmin(interaction)) {
+    await interaction.reply({ embeds: [errorEmbed('Permiso denegado', 'Solo líderes y co-líderes pueden otorgar puntos.')], ephemeral: true });
+    return;
+  }
+
   await interaction.deferReply();
 
   const rawTag = interaction.options.getString('player', true);
@@ -66,6 +71,11 @@ async function ejecutarBonus(interaction: ChatInputCommandInteraction): Promise<
 }
 
 async function ejecutarPenalizar(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!isAdmin(interaction)) {
+    await interaction.reply({ embeds: [errorEmbed('Permiso denegado', 'Solo líderes y co-líderes pueden penalizar puntos.')], ephemeral: true });
+    return;
+  }
+
   await interaction.deferReply();
 
   const rawTag = interaction.options.getString('player', true);

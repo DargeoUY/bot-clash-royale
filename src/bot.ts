@@ -15,6 +15,7 @@ import { initTelegram } from './tasks/telegram-init';
 import { startTelegramWelcome, stopTelegramWelcome } from './tasks/telegram-welcome';
 import { handleInteraction } from './events/interactionCreate';
 import { crGet } from './api/client';
+import prisma from './database/prisma';
 
 async function testApiConnection(): Promise<void> {
   const keyPreview = config.CR_API_KEY.substring(0, 20) + '...';
@@ -89,7 +90,7 @@ const healthServer = http.createServer((_req, res) => {
   res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
 });
 
-function shutdown(): void {
+async function shutdown(): Promise<void> {
   logger.info('Apagando bot...');
   stopSyncTasks();
   stopInactivityCheck();
@@ -103,6 +104,7 @@ function shutdown(): void {
   stopTelegramWelcome();
   client.destroy();
   healthServer.close();
+  await prisma.$disconnect();
   process.exit(0);
 }
 

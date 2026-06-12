@@ -3,6 +3,7 @@ import { exec } from 'child_process';
 import { config } from '../config';
 import logger from '../config/logger';
 import path from 'path';
+import fs from 'fs';
 
 let task: cron.ScheduledTask | null = null;
 
@@ -11,10 +12,18 @@ export function startBackupTask(): void {
     logger.info('Running database backup...');
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const backupFile = path.join(process.cwd(), 'backups', `backup-${timestamp}.sql`);
-      const dbUrl = config.DATABASE_URL;
+      const backupDir = path.join(process.cwd(), 'backups');
+      if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+      const backupFile = path.join(backupDir, `backup-${timestamp}.sql`);
+      const dbUrl = new URL(config.DATABASE_URL);
 
-      const cmd = `pg_dump "${dbUrl}" > "${backupFile}"`;
+      const host = dbUrl.hostname;
+      const port = dbUrl.port || '3306';
+      const user = dbUrl.username;
+      const password = decodeURIComponent(dbUrl.password);
+      const database = decodeURIComponent(dbUrl.pathname.slice(1));
+
+      const cmd = `mysqldump --single-transaction -h "${host}" -P ${port} -u "${user}" -p"${password}" "${database}" > "${backupFile}"`;
 
       exec(cmd, (error) => {
         if (error) {

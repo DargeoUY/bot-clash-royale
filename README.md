@@ -10,7 +10,7 @@ Bot de Discord para administración de clanes de Clash Royale. Tracking de guerr
 | Lenguaje | TypeScript 5 |
 | Bot | discord.js v14 |
 | ORM | Prisma v5 |
-| DB | PostgreSQL 16 |
+| DB | MariaDB 11 |
 | Deploy | Docker + Compose |
 | Logging | Winston |
 | Tareas | node-cron |
@@ -85,7 +85,7 @@ En Discord: `/auto-setup #CLAN_TAG`
 | Reporte semanal | Cada lunes | Reporte semanal de guerra y actividad | `guerra` |
 | Reporte mensual | Día 1 del mes | Reporte mensual con resumen | `guerra` |
 | Actualizar roles | Cada 12 horas | Sincroniza roles de Discord con actividad | — |
-| Backup BD | Cada 24h (4 AM) | Backup de la base de datos PostgreSQL | — |
+| Backup BD | Cada 24h (4 AM) | Backup de la base de datos MariaDB | — |
 
 ---
 
@@ -187,7 +187,7 @@ El bot usa un sistema de cola (`RequestQueue`) con:
 | `DISCORD_CLIENT_ID` | Client ID de la aplicación |
 | `CR_API_KEY` | API Key de Clash Royale (JWT) |
 | `CR_API_BASE_URL` | URL base de la API (default: proxy.royaleapi.dev) |
-| `DATABASE_URL` | URL de conexión PostgreSQL |
+| `DATABASE_URL` | URL de conexión MariaDB |
 | `CLAN_TAG` | Tag del clan por defecto |
 | `INACTIVITY_THRESHOLD_DAYS` | Días para considerar inactivo (default: 2) |
 | `VACATION_MAX_DAYS` | Días máximos de vacaciones por mes (default: 20) |

@@ -125,21 +125,61 @@ async function sendWelcome(chatId: number): Promise<void> {
   }
 }
 
+async function deleteWebhook(token: string): Promise<void> {
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${token}/deleteWebhook?drop_pending_updates=true`, { method: 'POST' });
+    const data = await resp.json() as { ok: boolean; description?: string };
+    if (data.ok) {
+      logger.info('Telegram: webhook deleted (polling mode)');
+    } else {
+      logger.warn(`Telegram: deleteWebhook failed: ${data.description || 'unknown error'}`);
+    }
+  } catch (err) {
+    logger.error(`Telegram: deleteWebhook error: ${(err as Error).message}`);
+  }
+}
+
+async function getMe(token: string): Promise<boolean> {
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+    const data = await resp.json() as { ok: boolean; description?: string; result?: { username: string } };
+    if (data.ok && data.result) {
+      logger.info(`Telegram: bot connected as @${data.result.username}`);
+      return true;
+    } else {
+      logger.error(`Telegram: getMe failed: ${data.description || 'unknown error'}`);
+      return false;
+    }
+  } catch (err) {
+    logger.error(`Telegram: getMe error: ${(err as Error).message}`);
+    return false;
+  }
+}
+
 async function pollUpdates(token: string): Promise<void> {
   try {
-    const url = `https://api.telegram.org/bot${token}/getUpdates?offset=${lastUpdateId + 1}&timeout=5`;
+    const url = `https://api.telegram.org/bot${token}/getUpdates?offset=${lastUpdateId + 1}&timeout=5&allowed_updates=["message","my_chat_member"]`;
     const resp = await fetch(url);
-    const data = await resp.json() as { ok: boolean; result: TgUpdate[] };
+    const data = await resp.json() as { ok: boolean; result?: TgUpdate[]; description?: string; error_code?: number };
 
-    if (!data.ok || !Array.isArray(data.result)) return;
+    if (!data.ok) {
+      logger.error(`Telegram getUpdates error [${data.error_code}]: ${data.description || 'unknown'}`);
+      if (data.error_code === 409) {
+        logger.error('Telegram: Conflict detected — deleting webhook and retrying next cycle...');
+        await deleteWebhook(token);
+      }
+      return;
+    }
+
+    if (!Array.isArray(data.result)) return;
 
     for (const update of data.result) {
       lastUpdateId = update.update_id;
 
-      // Bot added to a new group → generate link code
       if (update.my_chat_member) {
         const mcm = update.my_chat_member;
         const isGroup = mcm.chat.type === 'group' || mcm.chat.type === 'supergroup';
+        logger.info(`Telegram my_chat_member: chat=${mcm.chat.id} type=${mcm.chat.type} status=${mcm.new_chat_member.status}`);
         if (isGroup && mcm.new_chat_member.status === 'member') {
           const groupChatId = mcm.chat.id;
 
@@ -170,6 +210,8 @@ async function pollUpdates(token: string): Promise<void> {
       const msg = update.message;
       if (!msg) continue;
 
+      logger.info(`Telegram message: chat=${msg.chat.id} type=${msg.chat.type} text="${(msg.text || '').substring(0, 50)}" from=${msg.from?.id}`);
+
       if (msg.new_chat_members) {
         for (const member of msg.new_chat_members) {
           if (member.is_bot) continue;
@@ -182,6 +224,7 @@ async function pollUpdates(token: string): Promise<void> {
       if (msg.text && msg.from && !msg.from.is_bot && msg.text.trim().startsWith('/')) {
         const { handleTelegramCommand } = await import('../services/telegram-commands');
         const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
+        logger.info(`Telegram command: "${msg.text}" from user ${msg.from.id} in chat ${msg.chat.id} (${msg.chat.type})`);
         const reply = await handleTelegramCommand(msg.chat.id, msg.from.id, msg.text.trim(), isGroup);
         if (reply) {
           await sendText(msg.chat.id, reply.text, msg.message_id);
@@ -197,7 +240,7 @@ async function pollUpdates(token: string): Promise<void> {
       }
     }
   } catch (err) {
-    logger.debug(`Telegram poll error: ${(err as Error).message}`);
+    logger.error(`Telegram poll error: ${(err as Error).message}`);
   }
 }
 
@@ -208,22 +251,33 @@ export function startTelegramWelcome(): void {
   loadWelcomeConfig();
   setInterval(loadWelcomeConfig, 5 * 60 * 1000);
 
-  logger.info('Telegram polling started (every 5s)');
-  intervalId = setInterval(async () => {
-    try {
-      const token = config.TELEGRAM_BOT_TOKEN;
-      if (!token) return;
+  const token = config.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    logger.warn('Telegram: TELEGRAM_BOT_TOKEN not set, polling disabled');
+    polling = false;
+    return;
+  }
 
-      const chatCfg = await prisma.botConfig.findFirst({
-        where: { key: { startsWith: 'telegram_chat_' } },
-      });
-      if (token && chatCfg) {
-        await pollUpdates(token);
-      }
-    } catch (err) {
-      logger.debug(`Telegram poll loop error: ${(err as Error).message}`);
+  // Delete webhook and verify bot before starting polling
+  (async () => {
+    await deleteWebhook(token);
+    const ok = await getMe(token);
+    if (!ok) {
+      logger.error('Telegram: bot token invalid or API unreachable, polling disabled');
+      polling = false;
+      return;
     }
-  }, 5000);
+
+    logger.info('Telegram polling started (every 5s)');
+    intervalId = setInterval(async () => {
+      try {
+        if (!config.TELEGRAM_BOT_TOKEN) return;
+        await pollUpdates(config.TELEGRAM_BOT_TOKEN);
+      } catch (err) {
+        logger.error(`Telegram poll loop error: ${(err as Error).message}`);
+      }
+    }, 5000);
+  })();
 }
 
 export function stopTelegramWelcome(): void {

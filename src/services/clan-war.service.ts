@@ -233,19 +233,55 @@ export async function syncCurrentWar(clanTag: string): Promise<void> {
       },
     });
 
-    if (existingWar) return;
+    if (existingWar) {
+      if (clanStanding) {
+        await prisma.warLog.update({
+          where: { id: existingWar.id },
+          data: {
+            participants: clanStanding.clan.participants.length,
+            fame: clanStanding.clan.fame,
+          },
+        });
+
+        for (const participant of clanStanding.clan.participants) {
+          await prisma.warParticipant.upsert({
+            where: { warLogId_playerTag: { warLogId: existingWar.id, playerTag: participant.tag } },
+            update: {
+              fame: participant.fame,
+              repairPoints: participant.repairPoints,
+              boatsAttacked: participant.boatAttacks,
+              decksUsed: participant.decksUsed,
+              decksUsedToday: participant.decksUsedToday,
+            },
+            create: {
+              warLogId: existingWar.id,
+              playerTag: participant.tag,
+              fame: participant.fame,
+              repairPoints: participant.repairPoints,
+              boatsAttacked: participant.boatAttacks,
+              decksUsed: participant.decksUsed,
+              decksUsedToday: participant.decksUsedToday,
+            },
+          });
+        }
+      }
+      logger.debug(`War updated: season ${latestEntry.seasonId}, ${clanStanding?.clan?.participants?.length ?? 0} participants`);
+      return;
+    }
 
     const clanStanding = latestEntry.standings.find(
       (s) => s.clan.tag === clanTag,
     );
+
+    const startDate = parseSafeDate(race.periodLogs[0]?.startTime) ?? parseSafeDate(latestEntry.createdDate) ?? new Date();
 
     const warLog = await prisma.warLog.create({
       data: {
         clanTag,
         seasonId: String(latestEntry.seasonId),
         warType: 'riverRace',
-        startDate: new Date(),
-        endDate: new Date(),
+        startDate,
+        endDate: null,
         participants: clanStanding?.clan?.participants?.length ?? 0,
         fame: clanStanding?.clan?.fame ?? 0,
       },

@@ -3,6 +3,14 @@ import { BotCommand } from '../types';
 import { getGuildClanTag } from '../utils/guild';
 import prisma from '../database/prisma';
 
+function escapeCsvField(value: unknown): string {
+  const str = String(value ?? '');
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
 
@@ -27,7 +35,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
     }));
 
     const headers = 'tag,name,role,trophies,discordId,isRegistered,totalPoints\n';
-    const csvManual = headers + rows.map((r) => Object.values(r).join(',')).join('\n');
+    const csvManual = headers + rows.map((r) => Object.values(r).map(escapeCsvField).join(',')).join('\n');
     const buffer = Buffer.from(csvManual, 'utf-8');
     const attachment = new AttachmentBuilder(buffer, {
       name: `clashbot-export-${Date.now()}.csv`,
