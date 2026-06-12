@@ -241,52 +241,47 @@ export async function handleTelegramCommand(
       if (deltas.length > 0) {
         // Copas
         const byTrophies = [...deltas].filter(d => d.trophies > 0).sort((a, b) => b.trophies - a.trophies).slice(0, 5);
+        let m = '<b>--- Top Diario Copas ---</b>\n';
         if (byTrophies.length > 0) {
-          let m = '<b>--- Top Diario Copas ---</b>\n';
-          byTrophies.forEach((d, i) => {
-            m += `${medal(i)} <b>${d.name}</b> — +${d.trophies}\n`;
-          });
-          extra.push(m);
+          byTrophies.forEach((d, i) => { m += `${medal(i)} <b>${d.name}</b> — +${d.trophies}\n`; });
+        } else {
+          m += '<i>Sin datos. Se calculan a medianoche.</i>\n';
         }
+        extra.push(m);
 
         // Batallas
-        const byBattles = [...deltas]
-          .map(d => ({ name: d.name, battles: d.wins + d.losses }))
-          .sort((a, b) => b.battles - a.battles)
-          .slice(0, 5)
-          .filter(d => d.battles > 0);
+        const byBattles = [...deltas].filter(d => d.wins + d.losses > 0).sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses)).slice(0, 5);
+        m = '<b>--- Top Diario Batallas ---</b>\n';
         if (byBattles.length > 0) {
-          let m = '<b>--- Top Diario Batallas ---</b>\n';
-          byBattles.forEach((d, i) => {
-            m += `${medal(i)} <b>${d.name}</b> — ${d.battles} batallas\n`;
-          });
-          extra.push(m);
+          byBattles.forEach((d, i) => { m += `${medal(i)} <b>${d.name}</b> — ${d.wins + d.losses} batallas\n`; });
+        } else {
+          m += '<i>Sin datos. Se contabilizan desde la medianoche.</i>\n';
         }
+        extra.push(m);
 
         // Donaciones
-        const byDons = [...deltas].sort((a, b) => b.donations - a.donations).slice(0, 5).filter(d => d.donations > 0);
+        const byDons = [...deltas].filter(d => d.donations > 0).sort((a, b) => b.donations - a.donations).slice(0, 5);
+        m = '<b>--- Top Diario Donaciones ---</b>\n';
         if (byDons.length > 0) {
-          let m = '<b>--- Top Diario Donaciones ---</b>\n';
-          byDons.forEach((d, i) => {
-            m += `${medal(i)} <b>${d.name}</b> — ${d.donations.toLocaleString()} 💎\n`;
-          });
-          extra.push(m);
+          byDons.forEach((d, i) => { m += `${medal(i)} <b>${d.name}</b> — ${d.donations.toLocaleString()} 💎\n`; });
+        } else {
+          m += '<i>Sin datos. Se contabilizan desde la medianoche.</i>\n';
         }
+        extra.push(m);
 
         // Guerra (live from API)
+        let guerraText = '<i>Sin datos. La guerra se actualiza en tiempo real.</i>';
         try {
           const race = await getCurrentRiverRace(clanTag);
           if (race.clan?.participants?.length) {
             const byFame = [...race.clan.participants].sort((a, b) => b.fame - a.fame).slice(0, 5).filter(p => p.fame > 0);
             if (byFame.length > 0) {
-              let m = '<b>--- Top Diario Guerra ---</b>\n';
-              byFame.forEach((p, i) => {
-                m += `${medal(i)} <b>${p.name}</b> — ${p.fame.toLocaleString()} ⚡ fama\n`;
-              });
-              extra.push(m);
+              guerraText = '';
+              byFame.forEach((p, i) => { guerraText += `${medal(i)} <b>${p.name}</b> — ${p.fame.toLocaleString()} ⚡ fama\n`; });
             }
           }
         } catch { /* ok */ }
+        extra.push('<b>--- Top Diario Guerra ---</b>\n' + guerraText);
       }
     } catch { /* ok */ }
 

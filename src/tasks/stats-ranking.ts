@@ -699,50 +699,56 @@ export async function publishCachedRanking(
     if (!channel) return;
 
     const header = new EmbedBuilder()
-      .setTitle(`📊 Ranking Diario${usedDate !== todayKey() ? ' (ayer)' : ''} (desde caché)`)
+      .setTitle(`📊 Ranking Diario${usedDate !== todayKey() ? ' (ayer)' : ''}`)
       .setColor(EMBED_COLOR)
       .setDescription(`${deltas.length} jugadores | ✅ ${totalW}V ❌ ${totalL}D | 💎 ${totalD.toLocaleString()} donaciones`)
+      .setFooter({ text: 'Los contadores arrancan de 0 y se acumulan durante el día.' })
       .setTimestamp();
     await channel.send({ embeds: [header] });
 
-    if (byTrophies.length > 0) {
-      const embed = new EmbedBuilder()
-        .setTitle('--- Top Diario Copas ---')
-        .setColor(0xFFD700)
-        .setDescription(byTrophies.slice(0, 5).map((d, i) => `${medal(i)} **${d.name}** — +${d.trophies}`).join('\n'));
-      await channel.send({ embeds: [embed] });
-    }
+    // Copas
+    const embedCopas = new EmbedBuilder()
+      .setTitle('--- Top Diario Copas ---')
+      .setColor(0xFFD700)
+      .setDescription(byTrophies.length > 0
+        ? byTrophies.slice(0, 5).map((d, i) => `${medal(i)} **${d.name}** — +${d.trophies}`).join('\n')
+        : '_Sin datos todavía. Las diferencias de copas se calculan a medianoche._');
+    await channel.send({ embeds: [embedCopas] });
 
-    if (byBattles.length > 0) {
-      const embed = new EmbedBuilder()
-        .setTitle('--- Top Diario Batallas ---')
-        .setColor(0xE74C3C)
-        .setDescription(byBattles.slice(0, 5).map((d, i) => `${medal(i)} **${d.name}** — ${d.wins + d.losses} batallas (${d.wins}V/${d.losses}D)`).join('\n'));
-      await channel.send({ embeds: [embed] });
-    }
+    // Batallas
+    const embedBat = new EmbedBuilder()
+      .setTitle('--- Top Diario Batallas ---')
+      .setColor(0xE74C3C)
+      .setDescription(byBattles.length > 0
+        ? byBattles.slice(0, 5).map((d, i) => `${medal(i)} **${d.name}** — ${d.wins + d.losses} batallas (${d.wins}V/${d.losses}D)`).join('\n')
+        : '_Sin datos todavía. Las batallas se contabilizan desde la medianoche._');
+    await channel.send({ embeds: [embedBat] });
 
-    if (byDonations.length > 0) {
-      const embed = new EmbedBuilder()
-        .setTitle('--- Top Diario Donaciones ---')
-        .setColor(0xFF69B4)
-        .setDescription(byDonations.slice(0, 5).map((d, i) => `${medal(i)} **${d.name}** — ${d.donations.toLocaleString()} 💎`).join('\n'));
-      await channel.send({ embeds: [embed] });
-    }
+    // Donaciones
+    const embedDon = new EmbedBuilder()
+      .setTitle('--- Top Diario Donaciones ---')
+      .setColor(0xFF69B4)
+      .setDescription(byDonations.length > 0
+        ? byDonations.slice(0, 5).map((d, i) => `${medal(i)} **${d.name}** — ${d.donations.toLocaleString()} 💎`).join('\n')
+        : '_Sin datos todavía. Las donaciones se contabilizan desde la medianoche._');
+    await channel.send({ embeds: [embedDon] });
 
     // Guerra (live from API)
+    let guerraDesc = '_Sin datos todavía. La guerra se actualiza en tiempo real._';
     try {
       const race = await getCurrentRiverRace(clanTag);
       if (race.clan?.participants?.length) {
         const byFame = [...race.clan.participants].sort((a, b) => b.fame - a.fame).slice(0, 5).filter(p => p.fame > 0);
         if (byFame.length > 0) {
-          const embed = new EmbedBuilder()
-            .setTitle('--- Top Diario Guerra ---')
-            .setColor(0x9B59B6)
-            .setDescription(byFame.map((p, i) => `${medal(i)} **${p.name}** — ${p.fame.toLocaleString()} ⚡ fama`).join('\n'));
-          await channel.send({ embeds: [embed] });
+          guerraDesc = byFame.map((p, i) => `${medal(i)} **${p.name}** — ${p.fame.toLocaleString()} ⚡ fama`).join('\n');
         }
       }
     } catch { /* ok */ }
+    const embedGuerra = new EmbedBuilder()
+      .setTitle('--- Top Diario Guerra ---')
+      .setColor(0x9B59B6)
+      .setDescription(guerraDesc);
+    await channel.send({ embeds: [embedGuerra] });
 
     logger.info(`Cached ranking published for ${clanTag} (${deltas.length} players)`);
   } catch (err) {
