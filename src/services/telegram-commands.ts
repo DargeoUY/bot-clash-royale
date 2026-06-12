@@ -1,5 +1,5 @@
 import { getPlayerInfo } from '../api/player';
-import { getClanInfo } from '../api/clan';
+import { getClanInfo, getCurrentRiverRace } from '../api/clan';
 import prisma from '../database/prisma';
 import logger from '../config/logger';
 
@@ -338,6 +338,70 @@ export async function handleTelegramCommand(
     } catch {
       return { text: '❌ No se pudo obtener info del clan.' };
     }
+  }
+
+  if (cmd === '/rankingn') {
+    if (!checkCooldown(userId)) {
+      return { text: '⏳ Esperá unos segundos antes de usar otro comando.' };
+    }
+
+    const err = await requireRegistration(userId);
+    if (err) return { text: err };
+
+    const player = await prisma.player.findFirst({
+      where: { telegramId: String(userId) },
+      select: { role: true },
+    });
+    if (player?.role !== 'leader' && player?.role !== 'coLeader') {
+      return { text: '⛔ Solo para líderes y co-líderes.' };
+    }
+
+    const clanTag = await getClanForChat(chatId);
+
+    let msg = '<b>📊 Ranking Completo (admin)</b>\n\n';
+
+    // Daily deltas
+    try {
+      const deltaCfg = await prisma.botConfig.findUnique({
+        where: { key: `daily_deltas_${clanTag}` },
+      });
+      if (deltaCfg) {
+        const deltas = JSON.parse(deltaCfg.value) as { name: string; trophies: number; wins: number; losses: number; donations: number }[];
+
+        const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies);
+        msg += '<b>--- Copas (todos) ---</b>\n';
+        byTrophies.forEach((d, i) => {
+          const sign = d.trophies > 0 ? '+' : '';
+          msg += `${i + 1}. <b>${d.name}</b> — ${sign}${d.trophies}\n`;
+        });
+
+        const byBattles = [...deltas].sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
+        msg += '\n<b>--- Batallas (todos) ---</b>\n';
+        byBattles.forEach((d, i) => {
+          msg += `${i + 1}. <b>${d.name}</b> — ${d.wins + d.losses} batallas (${d.wins}V/${d.losses}D)\n`;
+        });
+
+        const byDons = [...deltas].sort((a, b) => b.donations - a.donations);
+        msg += '\n<b>--- Donaciones (todos) ---</b>\n';
+        byDons.forEach((d, i) => {
+          msg += `${i + 1}. <b>${d.name}</b> — ${d.donations.toLocaleString()} 💎\n`;
+        });
+      }
+    } catch { /* ok */ }
+
+    // Guerra (live from API)
+    try {
+      const race = await getCurrentRiverRace(clanTag);
+      if (race.clan?.participants) {
+        const byFame = [...race.clan.participants].sort((a, b) => b.fame - a.fame);
+        msg += '\n<b>--- Guerra (todos) ---</b>\n';
+        byFame.forEach((p, i) => {
+          msg += `${i + 1}. <b>${p.name}</b> — ${p.fame.toLocaleString()} ⚡ fama\n`;
+        });
+      }
+    } catch { /* ok */ }
+
+    return { text: '📊 Ranking completo enviado al privado.', privateText: msg };
   }
 
   return null;
