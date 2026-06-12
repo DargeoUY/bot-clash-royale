@@ -227,13 +227,19 @@ export async function publishStatsRanking(
     if (!channel) return;
 
     if (isFirstDay) {
+      // Bootstrap: save today's midnight snapshot if it doesn't exist yet
+      if (!todaySnap) {
+        await saveMidnightSnapshot(clanTag, current);
+        logger.info(`Bootstrap: saved first midnight snapshot for ${clanTag}`);
+      }
+
       const header = new EmbedBuilder()
         .setTitle('📊 Ranking del Clan — Día 1 (sin datos aún)')
         .setColor(EMBED_COLOR)
         .setDescription(
           `**${members.length}** jugadores sincronizados.\n\n` +
-          `📌 Se guardó la primera foto a las 00:00.\n` +
-          `A las 00:00 de hoy se toma otra, y mañana a esta hora se publica el delta del día completo (medianoche a medianoche).`
+          `📌 Se guardó la primera foto. A las 00:00 se toma otra.\n` +
+          `Mañana a esta hora se publica el delta del día completo (medianoche a medianoche).`
         )
         .setFooter({ text: `Actualizado cada 24h | Errores: ${errors}` })
         .setTimestamp();
@@ -362,6 +368,12 @@ export async function publishStatsRanking(
 }
 
 export function startStatsRanking(client: Client): void {
+  // Bootstrap: save first midnight snapshot now so Day 1 starts immediately
+  runMidnightSnapshot().then(() => {
+    logger.info('Bootstrap: initial midnight snapshot saved');
+  }).catch(err => {
+    logger.error('Bootstrap snapshot failed:', (err as Error).message);
+  });
   midnightTask = cron.schedule('0 0 * * *', async () => {
     logger.info('Midnight snapshot: saving baseline...');
     await runMidnightSnapshot();
