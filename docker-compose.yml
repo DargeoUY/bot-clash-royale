@@ -24,7 +24,7 @@ services:
       - mysqldata:/var/lib/mysql
     restart: unless-stopped
     healthcheck:
-      test: ['CMD-SHELL', 'mariadb-admin ping -h localhost -u ${DB_USER:-clashbot} -p${DB_PASSWORD}']
+      test: ['CMD-SHELL', 'mariadb -u${DB_USER:-clashbot} -p${DB_PASSWORD} -e "SELECT 1"']
       interval: 10s
       timeout: 5s
       retries: 5
