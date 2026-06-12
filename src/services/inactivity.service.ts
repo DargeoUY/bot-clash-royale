@@ -25,7 +25,7 @@ export async function checkInactivity(clanTag: string, _guildId: string | null):
   if (!clan) return [];
 
   const thresholds = getThresholds(clan.memberCount || 50);
-  const baseThreshold = config.INACTIVITY_THRESHOLD_DAYS;
+  const baseThreshold = Math.min(config.INACTIVITY_THRESHOLD_DAYS, thresholds.warning);
   const now = new Date();
 
   const players = await prisma.player.findMany({

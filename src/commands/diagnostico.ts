@@ -6,6 +6,7 @@ import { CRApiError } from '../api/client';
 import prisma from '../database/prisma';
 import { isTelegramConfigured, sendTelegramMessage } from '../services/telegram.service';
 import { EMBED_COLOR } from '../utils/embeds';
+import { config } from '../config';
 
 interface TestResult {
   name: string;
@@ -32,17 +33,17 @@ export async function executeDiagnostico(interaction: ChatInputCommandInteractio
 
   // ── CR API tests ──
   results.push(await runTest('API Clan Info', async () => {
-    const c = await getClanInfo('#28P8RQUY');
+    const c = await getClanInfo(config.CLAN_TAG);
     return `${c.name} (${c.members}/50)`;
   }));
 
   results.push(await runTest('API Miembros', async () => {
-    const m = await getClanMembers('#28P8RQUY');
+    const m = await getClanMembers(config.CLAN_TAG);
     return `${m.length} miembros`;
   }));
 
   results.push(await runTest('API River Race', async () => {
-    const r = await getCurrentRiverRace('#28P8RQUY');
+    const r = await getCurrentRiverRace(config.CLAN_TAG);
     return `Estado: ${r.state}, ${r.clan?.participants?.length || 0} participantes`;
   }));
 

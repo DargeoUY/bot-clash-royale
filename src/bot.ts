@@ -22,7 +22,8 @@ async function testApiConnection(): Promise<void> {
   logger.info(`Config -> CR_API_KEY: ${keyPreview}`);
 
   try {
-    const result = await crGet<object>('/clans/%2328P8RQUY');
+    const clanTag = config.CLAN_TAG.replace('#', '%23');
+    const result = await crGet<object>(`/clans/${clanTag}`);
     const name = (result as { name?: string }).name || 'unknown';
     logger.info(`API OK -> Clan "${name}" conectado via ${config.CR_API_BASE_URL}`);
   } catch (err: unknown) {

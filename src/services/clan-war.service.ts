@@ -50,6 +50,9 @@ export async function syncClanData(
 
     const members = await getClanMembers(clanTag);
 
+    // Detect changes BEFORE upserting (so we can compare with pre-existing DB state)
+    const changes = await detectMemberChanges(clanTag, members);
+
     for (const member of members) {
       const lastSeen = parseSafeDate(member.lastSeen);
 
@@ -78,8 +81,6 @@ export async function syncClanData(
     }
 
     logger.info(`Clan members synced: ${members.length} players`);
-
-    const changes = await detectMemberChanges(clanTag, members);
 
     if (client) {
       const guild = client.guilds.cache.first();
@@ -243,10 +244,10 @@ export async function syncCurrentWar(clanTag: string): Promise<void> {
         clanTag,
         seasonId: String(latestEntry.seasonId),
         warType: 'riverRace',
-        startDate: new Date(race.periodLogs[0].periodIndex > 0 ? '' : new Date()),
+        startDate: new Date(),
         endDate: new Date(),
-        participants: clanStanding?.clan.participants.length,
-        fame: clanStanding?.clan.fame,
+        participants: clanStanding?.clan?.participants?.length ?? 0,
+        fame: clanStanding?.clan?.fame ?? 0,
       },
     });
 
@@ -272,7 +273,7 @@ export async function syncCurrentWar(clanTag: string): Promise<void> {
       }
     }
 
-    logger.info(`War synced: season ${latestEntry.seasonId}, ${clanStanding?.clan.participants.length || 0} participants`);
+    logger.info(`War synced: season ${latestEntry.seasonId}, ${clanStanding?.clan?.participants?.length ?? 0} participants`);
 
   } catch (error) {
     if (error instanceof CRApiError && error.status === 404) {

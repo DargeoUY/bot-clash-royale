@@ -3,18 +3,18 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
 model Clan {
   id             Int       @id @default(autoincrement())
-  tag            String    @unique
-  name           String
-  description    String?
+  tag            String    @unique @db.VarChar(15)
+  name           String    @db.VarChar(100)
+  description    String?   @db.Text
   level          Int?
   memberCount    Int?
-  discordGuildId String?
+  discordGuildId String?   @db.VarChar(30)
   isPrimary      Boolean   @default(false)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt()
@@ -26,17 +26,17 @@ model Clan {
 
 model Player {
   id            Int       @id @default(autoincrement())
-  tag           String    @unique
-  name          String
-  role          String?   // member, elder, coLeader, leader
+  tag           String    @unique @db.VarChar(15)
+  name          String    @db.VarChar(100)
+  role          String?   @db.VarChar(20)
   expLevel      Int?
   trophies      Int?
-  clanTag       String?
-  discordId     String?
-  telegramId    String?   @unique
+  clanTag       String?   @db.VarChar(15)
+  discordId     String?   @db.VarChar(30)
+  telegramId    String?   @unique @db.VarChar(30)
   isRegistered  Boolean   @default(false)
-  phone         String?
-  status        String    @default("active") // active, left
+  phone         String?   @db.VarChar(30)
+  status        String    @default("active") @db.VarChar(20)
   lastActiveAt  DateTime?
   leftAt        DateTime?
   createdAt     DateTime  @default(now())
@@ -54,9 +54,9 @@ model Player {
 
 model WarLog {
   id             Int       @id @default(autoincrement())
-  clanTag        String
-  seasonId       String?
-  warType        String    // riverRace, classic
+  clanTag        String    @db.VarChar(15)
+  seasonId       String?   @db.VarChar(50)
+  warType        String    @db.VarChar(20)
   startDate      DateTime
   endDate        DateTime?
   participants   Int?
@@ -73,7 +73,7 @@ model WarLog {
 model WarParticipant {
   id             Int       @id @default(autoincrement())
   warLogId       Int
-  playerTag      String
+  playerTag      String    @db.VarChar(15)
   battlesPlayed  Int       @default(0)
   battlesWon     Int       @default(0)
   battlesLost    Int       @default(0)
@@ -92,12 +92,12 @@ model WarParticipant {
 
 model PlayerPoint {
   id             Int       @id @default(autoincrement())
-  playerTag      String
+  playerTag      String    @db.VarChar(15)
   totalPoints    Int       @default(0)
   warPoints      Int       @default(0)
   activityPoints Int       @default(0)
   bonusPoints    Int       @default(0)
-  season         String?
+  season         String?   @db.VarChar(20)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt()
 
@@ -108,11 +108,11 @@ model PlayerPoint {
 
 model PointHistory {
   id          Int       @id @default(autoincrement())
-  playerTag   String
+  playerTag   String    @db.VarChar(15)
   points      Int
-  reason      String
-  description String?
-  season      String?
+  reason      String    @db.VarChar(50)
+  description String?   @db.Text
+  season      String?   @db.VarChar(20)
   createdAt   DateTime  @default(now())
 
   player      Player    @relation(fields: [playerTag], references: [tag])
@@ -120,11 +120,11 @@ model PointHistory {
 
 model InactivityLog {
   id             Int       @id @default(autoincrement())
-  playerTag      String
+  playerTag      String    @db.VarChar(15)
   daysInactive   Int
   notifiedAt     DateTime?
   notifiedCount  Int       @default(0)
-  status         String    @default("active")
+  status         String    @default("active") @db.VarChar(20)
   lastNotifiedAt DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt()
@@ -134,12 +134,12 @@ model InactivityLog {
 
 model Vacation {
   id         Int       @id @default(autoincrement())
-  playerTag  String
-  reason     String?
+  playerTag  String    @db.VarChar(15)
+  reason     String?   @db.Text
   startDate  DateTime
   endDate    DateTime
   isActive   Boolean   @default(true)
-  createdBy  String
+  createdBy  String    @db.VarChar(30)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt()
 
@@ -148,10 +148,10 @@ model Vacation {
 
 model DonationLog {
   id               Int       @id @default(autoincrement())
-  playerTag        String
+  playerTag        String    @db.VarChar(15)
   donations        Int       @default(0)
   donationsReceived Int      @default(0)
-  season           String?
+  season           String?   @db.VarChar(20)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt()
 
@@ -162,9 +162,9 @@ model DonationLog {
 
 model BotConfig {
   id        Int      @id @default(autoincrement())
-  clanTag   String?
-  key       String   @unique
-  value     String
+  clanTag   String?  @db.VarChar(15)
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
 
@@ -172,58 +172,65 @@ model BotConfig {
 }
 
 model ClanHistory {
-  id        Int      @id @default(autoincrement())
-  playerTag String
-  clanTag   String
-  event     String   // joined, left
-  playerName String?
-  createdAt DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  playerTag  String   @db.VarChar(15)
+  clanTag    String   @db.VarChar(15)
+  event      String   @db.VarChar(20)
+  playerName String?  @db.VarChar(100)
+  createdAt  DateTime @default(now())
 
-  player    Player   @relation(fields: [playerTag], references: [tag])
+  player     Player   @relation(fields: [playerTag], references: [tag])
 }
 
-model StatsSnapshot {
-  id        Int      @id @default(autoincrement())
-  playerTag String
-  date      String   // YYYY-MM-DD
-  clanTag   String
-  wins      Int      @default(0)
-  losses    Int      @default(0)
-  donations Int      @default(0)
-  trophies  Int      @default(0)
-  createdAt DateTime @default(now())
+model PuntoGuardado {
+  id              Int      @id @default(autoincrement())
+  playerTag       String   @db.VarChar(15)
+  dia             Int
+  mes             Int
+  anio            Int
+  clanTag         String   @db.VarChar(15)
+  partidasGanadas Int      @default(0)
+  partidasPerdidas Int     @default(0)
+  cartasDonadas   Int      @default(0)
+  trofeos         Int      @default(0)
+  createdAt       DateTime @default(now())
 
-  @@unique([playerTag, date])
-  @@index([clanTag, date])
+  @@unique([playerTag, dia, mes, anio])
+  @@index([clanTag])
 }
 
-model DailyDelta {
-  id        Int      @id @default(autoincrement())
-  playerTag String
-  date      String   // YYYY-MM-DD
-  clanTag   String
-  wins      Int      @default(0)
-  losses    Int      @default(0)
-  donations Int      @default(0)
-  trophies  Int      @default(0)
-  createdAt DateTime @default(now())
+model DeltaDiario {
+  id              Int      @id @default(autoincrement())
+  playerTag       String   @db.VarChar(15)
+  dia             Int
+  mes             Int
+  anio            Int
+  hora            Int      @default(0)
+  minuto          Int      @default(0)
+  clanTag         String   @db.VarChar(15)
+  partidasGanadas Int      @default(0)
+  partidasPerdidas Int     @default(0)
+  cartasDonadas   Int      @default(0)
+  trofeos         Int      @default(0)
+  fama            Int      @default(0)
+  createdAt       DateTime @default(now())
 
-  @@unique([playerTag, date])
-  @@index([clanTag, date])
+  @@unique([playerTag, dia, mes, anio])
+  @@index([clanTag])
 }
 
-model WeeklyAcc {
-  id        Int      @id @default(autoincrement())
-  playerTag String
-  weekStart String   // YYYY-MM-DD (Monday)
-  clanTag   String
-  wins      Int      @default(0)
-  losses    Int      @default(0)
-  donations Int      @default(0)
-  trophies  Int      @default(0)
-  fame      Int      @default(0)
-  createdAt DateTime @default(now())
+model AcumuladoSemanal {
+  id              Int      @id @default(autoincrement())
+  playerTag       String   @db.VarChar(15)
+  inicioSemana    String   @db.VarChar(10)
+  clanTag         String   @db.VarChar(15)
+  partidasGanadas Int      @default(0)
+  partidasPerdidas Int     @default(0)
+  cartasDonadas   Int      @default(0)
+  trofeos         Int      @default(0)
+  fama            Int      @default(0)
+  createdAt       DateTime @default(now())
 
-  @@unique([playerTag, weekStart])
-  @@index([clanTag, weekStart])
+  @@unique([playerTag, inicioSemana])
+  @@index([clanTag])
 }
