@@ -1,5 +1,58 @@
 # Bot Clash Royale — Contexto para nueva sesión
 
+## 🚨 GUÍA DE ONBOARDING PARA IAs — LEER PRIMERO
+
+### Flujo de trabajo al recibir una tarea
+1. Leé este documento entero
+2. `git pull` para tener el código más reciente
+3. Hacé los cambios en `G:\Otros ordenadores\Mi PC\Bot_Clash_Royale\src\`
+4. Sincronizá con: `robocopy "G:\...\Bot_Clash_Royale\src" "C:\Users\George\Proyectos\bot-clash-royale\src" /MIR /NFL /NDL /NJH /NJS /NC /NS /XD node_modules`
+5. Build: `cd "C:\Users\George\Proyectos\bot-clash-royale" && npm run build`
+6. Commit + push: `git add -A && git commit -m "..." && git push`
+7. Sync al VPS: `robocopy "G:\...\Bot_Clash_Royale\src" "G:\...\Proyectos-En-Progrso\Bot_Clash_Royale\src" /E /NFL /NDL /NJH /NJS /XD node_modules`
+8. El usuario reconstruye en el VPS
+
+### ⚠️ PELIGROS — Lo que rompe todo
+
+| Acción | Consecuencia | Cómo evitarlo |
+|---|---|---|
+| `docker compose down -v` | **Borra toda la DB de MariaDB.** Se pierde BotConfig, Players, Clan, TODO. | Solo usar si MariaDB está corrupto (InnoDB error). Después reconfigurar TODO en Discord. |
+| Editar `.env` sin resync | El VPS usa el `.env` de Google Drive. Si cambiás el local pero no el de GDrive, no surte efecto. | Siempre copiar `.env` a `G:\...\Proyectos-En-Progrso\Bot_Clash_Royale\.env` |
+| `network_mode: host` | No funciona en Docker Desktop Windows | Mantenerlo removido (red bridge por defecto) |
+| `DATABASE_URL` con `localhost` | El container no ve localhost del host, ve `mysql:3306` | Siempre usar `@mysql:3306` |
+| Borrar `openssl` del Dockerfile | Prisma necesita OpenSSL para MySQL/MariaDB | No sacar `apt-get install -y openssl` |
+| Hacer rename masivo con regex | Se rompen tipos de API (PlayerInfo, ClanMember) y interfaces internas | Solo renombrar explícitamente en contexto Prisma |
+
+### 🔄 Qué reconfigurar después de `docker compose down -v`
+Ejecutar en Discord, en orden:
+1. `/setup #28P8RQUY`
+2. `/config telegram-chat -1003975004023`
+3. `/config canal-ranking` + `/config canal-guerra` + `/config canal-alertas` + `/config canal-torneo`
+4. `/config link-whatsapp`
+5. `/config bienvenida-telegram` (opcional)
+6. `/auto-setup` (si se perdieron roles/canales)
+
+Los datos de ranking (PuntoGuardado, DeltaDiario, etc.) se regeneran automáticamente.
+
+### 🧪 Diagnóstico rápido
+```bash
+# En el VPS:
+docker compose logs bot --tail 30      # ver si arrancó todo
+docker compose exec mysql mysql -uclashbot -pEllaNoTeAma clashbot -e "SELECT `key`, value FROM BotConfig"  # ver config
+```
+En Discord: `/diagnostico` (testea API, DB, Telegram)
+
+### 📋 Checklist para verificar que el bot está 100% funcional
+- [ ] `docker compose logs bot` muestra "Bot conectado como Asistente Royale"
+- [ ] `docker compose logs bot` muestra "Telegram polling started"
+- [ ] `docker compose logs bot` muestra "API OK — Clan UruguayConQueso"
+- [ ] Sin errores 409 (Telegram conflict) — si aparecen, revisar mutex en polling
+- [ ] Comandos de Discord funcionan (`/diagnostico`)
+- [ ] Comandos de Telegram funcionan (`/help` en el grupo)
+- [ ] Ranking diario accesible con `/ranking stats`
+
+---
+
 ## Arquitectura
 ```
 ┌──────────┐     ┌──────────────┐     ┌───────────┐
