@@ -48,7 +48,10 @@ export async function executeDiagnostico(interaction: ChatInputCommandInteractio
   }));
 
   results.push(await runTest('API Player Info', async () => {
-    const p = await getPlayerInfo('#880V0RP9G');
+    const members = await getClanMembers(config.CLAN_TAG);
+    const leader = members.find((m: { role: string }) => m.role === 'leader');
+    if (!leader) return 'Sin líder en el clan';
+    const p = await getPlayerInfo(leader.tag);
     return `${p.name} — ${p.trophies}🏆 ${p.wins}V/${p.losses}D`;
   }));
 
