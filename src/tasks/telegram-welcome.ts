@@ -199,6 +199,11 @@ async function pollUpdates(token: string): Promise<void> {
               await sendText(msg.chat.id, extra);
             }
           }
+          if (reply.guideImages) {
+            for (const url of reply.guideImages) {
+              await sendPhoto(msg.chat.id, url, '');
+            }
+          }
         }
       }
     }
