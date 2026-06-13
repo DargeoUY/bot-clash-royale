@@ -130,9 +130,14 @@ async function pollUpdates(token: string): Promise<void> {
   try {
     const url = `https://api.telegram.org/bot${token}/getUpdates?offset=${lastUpdateId + 1}&timeout=5`;
     const resp = await fetch(url);
-    const data = await resp.json() as { ok: boolean; result: TgUpdate[] };
+    const data = await resp.json() as { ok: boolean; result: TgUpdate[]; description?: string };
 
-    if (!data.ok || !Array.isArray(data.result)) return;
+    if (!data.ok || !Array.isArray(data.result)) {
+      if (data.description?.includes('409') || data.description?.includes('Conflict')) {
+        logger.warn(`Telegram 409: ${data.description} — puede haber otro contenedor corriendo`);
+      }
+      return;
+    }
 
     for (const update of data.result) {
       lastUpdateId = update.update_id;
@@ -209,19 +214,28 @@ export function startTelegramWelcome(): void {
   loadWelcomeConfig();
   setInterval(loadWelcomeConfig, 5 * 60 * 1000);
 
+  // Delete any lingering webhook so polling works cleanly
+  const token = config.TELEGRAM_BOT_TOKEN;
+  if (token) {
+    fetch(`https://api.telegram.org/bot${token}/deleteWebhook?drop_pending_updates=true`, { method: 'POST' })
+      .catch(() => {});
+  }
+
   logger.info('Telegram polling started (every 5s)');
   intervalId = setInterval(async () => {
     if (pollingActive) return;
     pollingActive = true;
     try {
-      const token = config.TELEGRAM_BOT_TOKEN;
-      if (!token) return;
+      const token2 = config.TELEGRAM_BOT_TOKEN;
+      if (!token2) { logger.warn('Telegram: TELEGRAM_BOT_TOKEN no configurado en .env'); return; }
 
       const chatCfg = await prisma.botConfig.findFirst({
         where: { key: { startsWith: 'telegram_chat_' } },
       });
-      if (token && chatCfg) {
-        await pollUpdates(token);
+      if (chatCfg) {
+        await pollUpdates(token2);
+      } else {
+        logger.debug('Telegram: sin chat configurado, esperando /config telegram-chat');
       }
     } catch (err) {
       logger.debug(`Telegram poll loop error: ${(err as Error).message}`);
