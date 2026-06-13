@@ -33,7 +33,7 @@ async function loadWeeklyWithNames(clanTag: string): Promise<{ tag: string; name
 
 function checkCooldown(userId: number): boolean { const last = cooldowns.get(userId); if (last && Date.now() - last < COOLDOWN_MS) return false; cooldowns.set(userId, Date.now()); return true; }
 function cleanTag(tag: string): string { return tag.startsWith('#') ? tag : `#${tag}`; }
-function medal(i: number): string { return i < 3 ? ['ðŸ¥‡', 'ðŸ¥ˆ', 'ðŸ¥‰'][i] : `${i + 1}`; }
+function medal(i: number): string { return i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`; }
 
 async function requireRegistration(userId: number): Promise<TgReply | null> {
   const player = await prisma.player.findFirst({ where: { telegramId: String(userId) } });
@@ -58,79 +58,79 @@ export async function handleTelegramCommand(chatId: number, userId: number, text
 
   if (cmd === '/start' || cmd === '/help') {
     let msg = '<b>Comandos disponibles</b>\n\n';
-    msg += '/registrar #TAG â€” Vincula tu cuenta de Clash Royale\n';
-    msg += '/perfil â€” Ver tu perfil (requiere /registrar)\n';
-    msg += '/ranking â€” Ranking diario y semanal\n';
-    msg += '/rankingn â€” Ranking completo (solo lÃ­deres)\n';
-    msg += '/clan â€” Info del clan\n';
-    msg += '/help â€” Este mensaje';
+    msg += '/registrar #TAG — Vincula tu cuenta de Clash Royale\n';
+    msg += '/perfil — Ver tu perfil (requiere /registrar)\n';
+    msg += '/ranking — Ranking diario y semanal\n';
+    msg += '/rankingn — Ranking completo (solo líderes)\n';
+    msg += '/clan — Info del clan\n';
+    msg += '/help — Este mensaje';
     return { text: msg };
   }
 
   if (cmd === '/registrar') {
-    if (!checkCooldown(userId)) return { text: 'â³ EsperÃ¡ unos segundos antes de usar otro comando.' };
+    if (!checkCooldown(userId)) return { text: '⏳ Esperá unos segundos antes de usar otro comando.' };
     if (parts.length < 2) return { text: 'Uso: /registrar #TAG\nEjemplo: <code>/registrar #P9Y8R2G</code>' };
     const tag = cleanTag(parts[1]);
     try {
       const player = await getPlayerInfo(tag);
-      if (!player) return { text: 'âŒ Jugador no encontrado. VerificÃ¡ el tag.' };
+      if (!player) return { text: '❌ Jugador no encontrado. Verificá el tag.' };
       const clanTag = await getClanForChat(chatId);
       const expectedClan = cleanTag(clanTag);
-      if (player.clan?.tag !== expectedClan) return { text: `âŒ ${player.name} no estÃ¡ en UruguayConQueso. EstÃ¡ en ${player.clan?.name || 'ningÃºn clan'}.` };
+      if (player.clan?.tag !== expectedClan) return { text: `❌ ${player.name} no está en UruguayConQueso. Está en ${player.clan?.name || 'ningún clan'}.` };
       const existing = await prisma.player.findFirst({ where: { telegramId: String(userId), tag: { not: tag } } });
-      if (existing) return { text: `âš ï¸ Ya tenÃ©s vinculada la cuenta ${existing.name} (${existing.tag}).\nUsÃ¡ /perfil para verla.` };
+      if (existing) return { text: `⚠️ Ya tenés vinculada la cuenta ${existing.name} (${existing.tag}).\nUsá /perfil para verla.` };
       await prisma.player.upsert({
         where: { tag },
         update: { name: player.name, telegramId: String(userId), clanTag: expectedClan },
         create: { tag, name: player.name, role: player.role, expLevel: player.expLevel, trophies: player.trophies, clanTag: expectedClan, telegramId: String(userId), status: 'active' },
       });
       logger.info(`Telegram user ${userId} linked to ${player.name} (${tag})`);
-      const privateMsg = `âœ… Â¡Vinculado! Bienvenido <b>${player.name}</b> (${player.tag}).\n\nRol: ${player.role || 'Miembro'}\nNivel: ${player.expLevel || '?'}\nCopas: ${player.trophies || '?'}\nArena: ${player.arena?.name || '?'}\n\nAhora podÃ©s usar /perfil, /ranking y /clan.`;
-      if (isGroup) return { text: `âœ… ${player.name} vinculado correctamente.`, privateText: privateMsg };
+      const privateMsg = `✅ ¡Vinculado! Bienvenido <b>${player.name}</b> (${player.tag}).\n\nRol: ${player.role || 'Miembro'}\nNivel: ${player.expLevel || '?'}\nCopas: ${player.trophies || '?'}\nArena: ${player.arena?.name || '?'}\n\nAhora podés usar /perfil, /ranking y /clan.`;
+      if (isGroup) return { text: `✅ ${player.name} vinculado correctamente.`, privateText: privateMsg };
       return { text: privateMsg };
-    } catch (err) { logger.error(`Telegram register error: ${(err as Error).message}`); return { text: 'âŒ Error al verificar el jugador. IntentÃ¡ de nuevo.' }; }
+    } catch (err) { logger.error(`Telegram register error: ${(err as Error).message}`); return { text: '❌ Error al verificar el jugador. Intentá de nuevo.' }; }
   }
 
   if (cmd === '/perfil') {
-    if (!checkCooldown(userId)) return { text: 'â³ EsperÃ¡ unos segundos antes de usar otro comando.' };
+    if (!checkCooldown(userId)) return { text: '⏳ Esperá unos segundos antes de usar otro comando.' };
     const err = await requireRegistration(userId); if (err) return err;
     const player = await prisma.player.findFirst({ where: { telegramId: String(userId) } });
     let msg = `<b>${player!.name}</b> (${player!.tag})\n`;
     if (player!.role) msg += `Rol: ${player!.role}\n`;
     msg += `Nivel: ${player!.expLevel ?? '?'}\nCopas: ${player!.trophies ?? '?'}\n`;
-    if (player!.lastActiveAt) { const days = Math.floor((Date.now() - player!.lastActiveAt.getTime()) / (1000 * 60 * 60 * 24)); msg += `Ãšltima actividad: hace ${days} dÃ­as\n`; }
+    if (player!.lastActiveAt) { const days = Math.floor((Date.now() - player!.lastActiveAt.getTime()) / (1000 * 60 * 60 * 24)); msg += `Última actividad: hace ${days} días\n`; }
     return { text: msg };
   }
 
   if (cmd === '/ranking') {
-    if (!checkCooldown(userId)) return { text: 'â³ EsperÃ¡ unos segundos antes de usar otro comando.' };
+    if (!checkCooldown(userId)) return { text: '⏳ Esperá unos segundos antes de usar otro comando.' };
     const err = await requireRegistration(userId); if (err) return err;
     const clanTag = await getClanForChat(chatId);
     const extra: string[] = [];
-    let header = '<b>ðŸ“Š Ranking del Clan</b>';
+    let header = '<b>📊 Ranking del Clan</b>';
 
     try {
       const deltas = await loadDeltasWithNames(clanTag);
       const byTrophies = [...deltas].filter(d => d.trophies > 0).sort((a, b) => b.trophies - a.trophies).slice(0, 5);
       let m = '<b>--- Top Diario Copas ---</b>\n';
-      if (byTrophies.length > 0) byTrophies.forEach((d, i) => { m += `${medal(i)} <b>${d.name}</b> â€” +${d.trophies}\n`; });
+      if (byTrophies.length > 0) byTrophies.forEach((d, i) => { m += `${medal(i)} <b>${d.name}</b> — +${d.trophies}\n`; });
       else m += '<i>Sin datos. Se calculan a medianoche.</i>\n';
       extra.push(m);
 
       const byBattles = [...deltas].filter(d => d.wins + d.losses > 0).sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses)).slice(0, 5);
       m = '<b>--- Top Diario Batallas ---</b>\n';
-      if (byBattles.length > 0) byBattles.forEach((d, i) => { m += `${medal(i)} <b>${d.name}</b> â€” ${d.wins + d.losses} batallas\n`; });
+      if (byBattles.length > 0) byBattles.forEach((d, i) => { m += `${medal(i)} <b>${d.name}</b> — ${d.wins + d.losses} batallas\n`; });
       else m += '<i>Sin datos. Se contabilizan desde la medianoche.</i>\n';
       extra.push(m);
 
       const byDons = [...deltas].filter(d => d.donations > 0).sort((a, b) => b.donations - a.donations).slice(0, 5);
       m = '<b>--- Top Diario Donaciones ---</b>\n';
-      if (byDons.length > 0) byDons.forEach((d, i) => { m += `${medal(i)} <b>${d.name}</b> â€” ${d.donations.toLocaleString()} ðŸ’Ž\n`; });
+      if (byDons.length > 0) byDons.forEach((d, i) => { m += `${medal(i)} <b>${d.name}</b> — ${d.donations.toLocaleString()} 💎\n`; });
       else m += '<i>Sin datos. Se contabilizan desde la medianoche.</i>\n';
       extra.push(m);
 
       let guerraText = '<i>Sin datos. La guerra se actualiza en tiempo real.</i>';
-      try { const race = await getCurrentRiverRace(clanTag); if (race.clan?.participants?.length) { const byFame = [...race.clan.participants].sort((a, b) => b.fame - a.fame).slice(0, 5).filter(p => p.fame > 0); if (byFame.length > 0) { guerraText = ''; byFame.forEach((p, i) => { guerraText += `${medal(i)} <b>${p.name}</b> â€” ${p.fame.toLocaleString()} âš¡ fama\n`; }); } } } catch { /* ok */ }
+      try { const race = await getCurrentRiverRace(clanTag); if (race.clan?.participants?.length) { const byFame = [...race.clan.participants].sort((a, b) => b.fame - a.fame).slice(0, 5).filter(p => p.fame > 0); if (byFame.length > 0) { guerraText = ''; byFame.forEach((p, i) => { guerraText += `${medal(i)} <b>${p.name}</b> — ${p.fame.toLocaleString()} ⚡ fama\n`; }); } } } catch { /* ok */ }
       extra.push('<b>--- Top Diario Guerra ---</b>\n' + guerraText);
     } catch { /* ok */ }
 
@@ -139,55 +139,55 @@ export async function handleTelegramCommand(chatId: number, userId: number, text
       if (acc.length > 0 && acc.some(e => e.wins + e.losses + e.donations + e.fame > 0)) {
         const byBattles = [...acc].map(e => ({ name: e.name, battles: e.wins + e.losses })).sort((a, b) => b.battles - a.battles).slice(0, 5).filter(e => e.battles > 0);
         let m = '<b>--- Top Semanal Batallas ---</b>\n';
-        if (byBattles.length > 0) byBattles.forEach((e, i) => { m += `${medal(i)} <b>${e.name}</b> â€” ${e.battles} batallas\n`; });
+        if (byBattles.length > 0) byBattles.forEach((e, i) => { m += `${medal(i)} <b>${e.name}</b> — ${e.battles} batallas\n`; });
         else m += '<i>Sin datos.</i>\n';
         extra.push(m);
         const byDons = [...acc].sort((a, b) => b.donations - a.donations).slice(0, 5).filter(e => e.donations > 0);
         m = '<b>--- Top Semanal Donaciones ---</b>\n';
-        if (byDons.length > 0) byDons.forEach((e, i) => { m += `${medal(i)} <b>${e.name}</b> â€” ${e.donations.toLocaleString()} ðŸ’Ž\n`; });
+        if (byDons.length > 0) byDons.forEach((e, i) => { m += `${medal(i)} <b>${e.name}</b> — ${e.donations.toLocaleString()} 💎\n`; });
         else m += '<i>Sin datos.</i>\n';
         extra.push(m);
         const byFame = [...acc].sort((a, b) => b.fame - a.fame).slice(0, 5).filter(e => e.fame > 0);
         m = '<b>--- Top Semanal Guerra ---</b>\n';
-        if (byFame.length > 0) byFame.forEach((e, i) => { m += `${medal(i)} <b>${e.name}</b> â€” ${e.fame.toLocaleString()} âš¡ fama\n`; });
+        if (byFame.length > 0) byFame.forEach((e, i) => { m += `${medal(i)} <b>${e.name}</b> — ${e.fame.toLocaleString()} ⚡ fama\n`; });
         else m += '<i>Sin datos.</i>\n';
         extra.push(m);
-      } else header += '\n<i>Sin datos semanales todavÃ­a.</i>';
+      } else header += '\n<i>Sin datos semanales todavía.</i>';
     } catch { header += '\n<i>Error al cargar ranking semanal.</i>'; }
-    if (extra.length === 0) header += '\n<i>Sin datos todavÃ­a. El ranking se actualiza cada 5 min.</i>';
+    if (extra.length === 0) header += '\n<i>Sin datos todavía. El ranking se actualiza cada 5 min.</i>';
     return { text: header, extraMessages: extra };
   }
 
   if (cmd === '/clan') {
-    if (!checkCooldown(userId)) return { text: 'â³ EsperÃ¡ unos segundos antes de usar otro comando.' };
+    if (!checkCooldown(userId)) return { text: '⏳ Esperá unos segundos antes de usar otro comando.' };
     const err = await requireRegistration(userId); if (err) return err;
     const clanTag = await getClanForChat(chatId);
     try {
       const clan = await getClanInfo(clanTag);
-      let msg = `<b>${clan.name}</b> (${clan.tag})\nMiembros: ${clan.members}/50\nCopas: ${clan.clanScore}\nTrofeos req.: ${clan.requiredTrophies}\nGuerra: ${clan.clanWarTrophies ?? 0} copas\nPaÃ­s: ${clan.location?.name || 'Internacional'}\n`;
+      let msg = `<b>${clan.name}</b> (${clan.tag})\nMiembros: ${clan.members}/50\nCopas: ${clan.clanScore}\nTrofeos req.: ${clan.requiredTrophies}\nGuerra: ${clan.clanWarTrophies ?? 0} copas\nPaís: ${clan.location?.name || 'Internacional'}\n`;
       if (clan.description) msg += `\n${clan.description}`;
       return { text: msg };
-    } catch { return { text: 'âŒ No se pudo obtener info del clan.' }; }
+    } catch { return { text: '❌ No se pudo obtener info del clan.' }; }
   }
 
   if (cmd === '/rankingn') {
-    if (!checkCooldown(userId)) return { text: 'â³ EsperÃ¡ unos segundos antes de usar otro comando.' };
+    if (!checkCooldown(userId)) return { text: '⏳ Esperá unos segundos antes de usar otro comando.' };
     const err = await requireRegistration(userId); if (err) return err;
     const player = await prisma.player.findFirst({ where: { telegramId: String(userId) }, select: { role: true } });
-    if (player?.role !== 'leader' && player?.role !== 'coLeader') return { text: 'â›” Solo para lÃ­deres y co-lÃ­deres.' };
+    if (player?.role !== 'leader' && player?.role !== 'coLeader') return { text: '⛔ Solo para líderes y co-líderes.' };
     const clanTag = await getClanForChat(chatId);
-    let msg = '<b>ðŸ“Š Ranking Completo (admin)</b>\n\n';
+    let msg = '<b>📊 Ranking Completo (admin)</b>\n\n';
     try {
       const deltas = await loadDeltasWithNames(clanTag);
       const byTrophies = [...deltas].sort((a, b) => b.trophies - a.trophies);
-      msg += '<b>--- Copas (todos) ---</b>\n'; byTrophies.forEach((d, i) => { msg += `${i + 1}. <b>${d.name}</b> â€” ${d.trophies > 0 ? '+' : ''}${d.trophies}\n`; });
+      msg += '<b>--- Copas (todos) ---</b>\n'; byTrophies.forEach((d, i) => { msg += `${i + 1}. <b>${d.name}</b> — ${d.trophies > 0 ? '+' : ''}${d.trophies}\n`; });
       const byBattles = [...deltas].sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
-      msg += '\n<b>--- Batallas (todos) ---</b>\n'; byBattles.forEach((d, i) => { msg += `${i + 1}. <b>${d.name}</b> â€” ${d.wins + d.losses} batallas (${d.wins}V/${d.losses}D)\n`; });
+      msg += '\n<b>--- Batallas (todos) ---</b>\n'; byBattles.forEach((d, i) => { msg += `${i + 1}. <b>${d.name}</b> — ${d.wins + d.losses} batallas (${d.wins}V/${d.losses}D)\n`; });
       const byDons = [...deltas].sort((a, b) => b.donations - a.donations);
-      msg += '\n<b>--- Donaciones (todos) ---</b>\n'; byDons.forEach((d, i) => { msg += `${i + 1}. <b>${d.name}</b> â€” ${d.donations.toLocaleString()} ðŸ’Ž\n`; });
-      try { const race = await getCurrentRiverRace(clanTag); if (race.clan?.participants) { const byFame = [...race.clan.participants].sort((a, b) => b.fame - a.fame); msg += '\n<b>--- Guerra (todos) ---</b>\n'; byFame.forEach((p, i) => { msg += `${i + 1}. <b>${p.name}</b> â€” ${p.fame.toLocaleString()} âš¡ fama\n`; }); } } catch { /* ok */ }
+      msg += '\n<b>--- Donaciones (todos) ---</b>\n'; byDons.forEach((d, i) => { msg += `${i + 1}. <b>${d.name}</b> — ${d.donations.toLocaleString()} 💎\n`; });
+      try { const race = await getCurrentRiverRace(clanTag); if (race.clan?.participants) { const byFame = [...race.clan.participants].sort((a, b) => b.fame - a.fame); msg += '\n<b>--- Guerra (todos) ---</b>\n'; byFame.forEach((p, i) => { msg += `${i + 1}. <b>${p.name}</b> — ${p.fame.toLocaleString()} ⚡ fama\n`; }); } } catch { /* ok */ }
     } catch { /* ok */ }
-    return { text: 'ðŸ“Š Ranking completo enviado al privado.', privateText: msg };
+    return { text: '📊 Ranking completo enviado al privado.', privateText: msg };
   }
 
   return null;
