@@ -69,14 +69,14 @@ export async function handleTelegramCommand(chatId: number, userId: number, text
 
   if (cmd === '/registrar') {
     if (!checkCooldown(userId)) return { text: '⏳ Esperá unos segundos antes de usar otro comando.' };
-    if (parts.length < 2) return { text: 'Uso: /registrar #TAG\nEjemplo: <code>/registrar #P9Y8R2G</code>' };
+    if (parts.length < 2) return { text: 'Uso: /registrar #TAG\nEjemplo: <code>/registrar #P9Y8R2G</code>', guideImages: GUIA_IMGS };
     const tag = cleanTag(parts[1]);
     try {
       const player = await getPlayerInfo(tag);
-      if (!player) return { text: '❌ Jugador no encontrado. Verificá el tag.' };
+      if (!player) return { text: '❌ Jugador no encontrado. Verificá el tag.', guideImages: GUIA_IMGS };
       const clanTag = await getClanForChat(chatId);
       const expectedClan = cleanTag(clanTag);
-      if (player.clan?.tag !== expectedClan) return { text: `❌ ${player.name} no está en UruguayConQueso. Está en ${player.clan?.name || 'ningún clan'}.` };
+      if (player.clan?.tag !== expectedClan) return { text: `❌ ${player.name} no está en UruguayConQueso. Está en ${player.clan?.name || 'ningún clan'}.`, guideImages: GUIA_IMGS };
       const existing = await prisma.player.findFirst({ where: { telegramId: String(userId), tag: { not: tag } } });
       if (existing) return { text: `⚠️ Ya tenés vinculada la cuenta ${existing.name} (${existing.tag}).\nUsá /perfil para verla.` };
       await prisma.player.upsert({
