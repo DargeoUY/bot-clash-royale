@@ -2,7 +2,8 @@ import { crGet } from './client';
 import { PlayerInfo, BattleLogEntry } from './types';
 
 function encodeTag(tag: string): string {
-  return encodeURIComponent(tag.startsWith('#') ? tag : `#${tag}`);
+  const clean = tag.startsWith('#') ? tag.slice(1) : tag;
+  return encodeURIComponent(clean);
 }
 
 export async function getPlayerInfo(playerTag: string, apiKey?: string): Promise<PlayerInfo> {
