@@ -1,9 +1,9 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
-import { BotCommand } from '../types';
-import { getGuildClanTag } from '../utils/guild';
-import { checkInactivity } from '../services/inactivity.service';
-import { EMBED_COLOR } from '../utils/embeds';
-import prisma from '../database/prisma';
+import { BotCommand } from '../../types';
+import { getGuildClanTag } from '../../utils/guild';
+import { checkInactivity } from '../../services/inactivity.service';
+import { EMBED_COLOR } from '../../utils/embeds';
+import prisma from '../../database/prisma';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply();

@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, AttachmentBuilder, PermissionFlagsBits } from 'discord.js';
-import { BotCommand } from '../types';
-import { getGuildClanTag } from '../utils/guild';
-import prisma from '../database/prisma';
+import { BotCommand } from '../../types';
+import { getGuildClanTag } from '../../utils/guild';
+import prisma from '../../database/prisma';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });

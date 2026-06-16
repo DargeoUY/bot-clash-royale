@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { BotCommand } from '../types';
-import { activateVacation, extendVacation, cancelVacation } from '../services/vacation.service';
-import { errorEmbed, successEmbed, EMBED_COLOR } from '../utils/embeds';
+import { BotCommand } from '../../types';
+import { activateVacation, extendVacation, cancelVacation } from '../../services/vacation.service';
+import { errorEmbed, successEmbed, EMBED_COLOR } from '../../utils/embeds';
 
 async function ejecutarActivar(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });

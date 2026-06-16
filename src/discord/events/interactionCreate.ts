@@ -1,7 +1,7 @@
 import { Interaction } from 'discord.js';
-import logger from '../config/logger';
+import logger from '../../config/logger';
 import { commands } from '../commands';
-import { errorEmbed, isAdmin } from '../utils/embeds';
+import { errorEmbed, isAdmin } from '../../utils/embeds';
 
 export async function handleInteraction(interaction: Interaction): Promise<void> {
   if (!interaction.isChatInputCommand()) return;

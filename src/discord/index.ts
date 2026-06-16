@@ -69,7 +69,7 @@ client.on(Events.Warn, (warning) => {
 
 client.on(Events.InteractionCreate, handleInteraction);
 
-export async function startBot(): Promise<void> {
+export async function startDiscordBot(): Promise<void> {
   await client.login(config.DISCORD_TOKEN);
   logger.info('Bot iniciado correctamente');
 }

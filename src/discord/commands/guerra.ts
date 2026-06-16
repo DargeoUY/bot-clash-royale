@@ -1,10 +1,10 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { BotCommand } from '../types';
-import { getGuildClanTag } from '../utils/guild';
-import { getCurrentRiverRace } from '../api/clan';
-import { getLeaderboard } from '../services/points.service';
-import { CRApiError } from '../api/client';
-import { errorEmbed, EMBED_COLOR } from '../utils/embeds';
+import { BotCommand } from '../../types';
+import { getGuildClanTag } from '../../utils/guild';
+import { getCurrentRiverRace } from '../../api/clan';
+import { getLeaderboard } from '../../services/points.service';
+import { CRApiError } from '../../api/client';
+import { errorEmbed, EMBED_COLOR } from '../../utils/embeds';
 
 async function executeEstado(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply();

@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { BotCommand } from '../types';
-import { EMBED_COLOR } from '../utils/embeds';
+import { BotCommand } from '../../types';
+import { EMBED_COLOR } from '../../utils/embeds';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const embed = new EmbedBuilder()

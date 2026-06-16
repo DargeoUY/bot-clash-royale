@@ -1,4 +1,4 @@
-import { BotCommand } from '../types';
+import { BotCommand } from '../../types';
 import { registrar } from './registrar';
 import { clan } from './clan';
 import { perfil } from './perfil';

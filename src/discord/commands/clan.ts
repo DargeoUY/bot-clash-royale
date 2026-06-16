@@ -3,13 +3,13 @@ import {
   ChatInputCommandInteraction,
   EmbedBuilder,
 } from 'discord.js';
-import { BotCommand } from '../types';
-import { getGuildClanTag, getGuildApiKey } from '../utils/guild';
-import { getClanInfo } from '../api/clan';
-import { CRApiError } from '../api/client';
-import { EMBED_COLOR, errorEmbed } from '../utils/embeds';
-import { getUnregisteredMembers } from '../services/donation.service';
-import { syncClanData } from '../services/clan-war.service';
+import { BotCommand } from '../../types';
+import { getGuildClanTag, getGuildApiKey } from '../../utils/guild';
+import { getClanInfo } from '../../api/clan';
+import { CRApiError } from '../../api/client';
+import { EMBED_COLOR, errorEmbed } from '../../utils/embeds';
+import { getUnregisteredMembers } from '../../services/donation.service';
+import { syncClanData } from '../../services/clan-war.service';
 
 async function executeInfo(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply();

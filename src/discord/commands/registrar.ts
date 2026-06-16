@@ -1,9 +1,9 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { BotCommand } from '../types';
-import { getGuildClanTag } from '../utils/guild';
-import { registerPlayer } from '../services/registration.service';
-import { isValidPlayerTag, formatPlayerTag } from '../utils/validators';
-import { errorEmbed, EMBED_COLOR } from '../utils/embeds';
+import { BotCommand } from '../../types';
+import { getGuildClanTag } from '../../utils/guild';
+import { registerPlayer } from '../../services/registration.service';
+import { isValidPlayerTag, formatPlayerTag } from '../../utils/validators';
+import { errorEmbed, EMBED_COLOR } from '../../utils/embeds';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });

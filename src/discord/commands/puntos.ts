@@ -1,9 +1,9 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { BotCommand } from '../types';
-import { getGuildClanTag } from '../utils/guild';
-import { getPlayerPoints, getPointHistory, addPoints, getLeaderboard } from '../services/points.service';
-import { isValidPlayerTag, formatPlayerTag } from '../utils/validators';
-import { errorEmbed, successEmbed, EMBED_COLOR } from '../utils/embeds';
+import { BotCommand } from '../../types';
+import { getGuildClanTag } from '../../utils/guild';
+import { getPlayerPoints, getPointHistory, addPoints, getLeaderboard } from '../../services/points.service';
+import { isValidPlayerTag, formatPlayerTag } from '../../utils/validators';
+import { errorEmbed, successEmbed, EMBED_COLOR } from '../../utils/embeds';
 
 async function ejecutarVer(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });

@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
-import { BotCommand } from '../types';
-import prisma from '../database/prisma';
-import { errorEmbed } from '../utils/embeds';
+import { BotCommand } from '../../types';
+import prisma from '../../database/prisma';
+import { errorEmbed } from '../../utils/embeds';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const guideChannelKey = `channel_guide_${interaction.guildId}`;

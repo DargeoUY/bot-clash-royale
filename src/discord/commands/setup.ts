@@ -1,9 +1,9 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
-import { BotCommand } from '../types';
-import { getClanInfo } from '../api/clan';
-import { CRApiError } from '../api/client';
-import prisma from '../database/prisma';
-import { errorEmbed, EMBED_COLOR } from '../utils/embeds';
+import { BotCommand } from '../../types';
+import { getClanInfo } from '../../api/clan';
+import { CRApiError } from '../../api/client';
+import prisma from '../../database/prisma';
+import { errorEmbed, EMBED_COLOR } from '../../utils/embeds';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });

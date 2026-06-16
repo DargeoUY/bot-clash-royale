@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
-import { BotCommand } from '../types';
-import { autoCreateSetup } from '../services/auto-setup.service';
-import { errorEmbed, EMBED_COLOR } from '../utils/embeds';
+import { BotCommand } from '../../types';
+import { autoCreateSetup } from '../../services/auto-setup.service';
+import { errorEmbed, EMBED_COLOR } from '../../utils/embeds';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });

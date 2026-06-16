@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
-import { BotCommand } from '../types';
-import { errorEmbed, createEmbed } from '../utils/embeds';
-import prisma from '../database/prisma';
+import { BotCommand } from '../../types';
+import { errorEmbed, createEmbed } from '../../utils/embeds';
+import prisma from '../../database/prisma';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
