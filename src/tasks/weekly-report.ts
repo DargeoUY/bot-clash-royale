@@ -26,11 +26,11 @@ async function publishWeeklyReport(client: Client): Promise<void> {
   if (!guild) return;
 
   const channelKey = `channel_war_${guild.id}`;
-  const cfg = await prisma.configuracionBot.findUnique({ where: { key: channelKey } });
+  const cfg = await prisma.configuracionBot.findUnique({ where: { clave: channelKey } });
   if (!cfg) return;
 
   try {
-    const channel = (await client.channels.fetch(cfg.value)) as TextChannel;
+    const channel = (await client.channels.fetch(cfg.valor)) as TextChannel;
     if (!channel) return;
 
     const leaderboard = await getLeaderboard(config.CLAN_TAG, 'semanal');

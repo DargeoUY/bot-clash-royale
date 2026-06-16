@@ -68,11 +68,11 @@ export async function registerPlayer(
     if (guild) {
       try {
         const reclutaKey = `role_recluta_${guild.id}`;
-        const cfg = await prisma.configuracionBot.findUnique({ where: { key: reclutaKey } });
+        const cfg = await prisma.configuracionBot.findUnique({ where: { clave: reclutaKey } });
         if (cfg) {
           const member = await guild.members.fetch(discordId).catch(() => null);
           if (member) {
-            const role = guild.roles.cache.get(cfg.value);
+            const role = guild.roles.cache.get(cfg.valor);
             if (role && !member.roles.cache.has(role.id)) {
               await member.roles.add(role);
               logger.info(`Rol Recluta asignado a ${player.name}`);

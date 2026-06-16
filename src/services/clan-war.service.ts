@@ -126,15 +126,15 @@ async function publishMemberChanges(
   if (changes.joined.length + changes.left.length + changes.rejoined.length === 0) return;
 
   const channelKey = `channel_members_${guildId}`;
-  let cfg = await prisma.configuracionBot.findUnique({ where: { key: channelKey } });
+  let cfg = await prisma.configuracionBot.findUnique({ where: { clave: channelKey } });
 
   if (!cfg) {
-    cfg = await prisma.configuracionBot.findUnique({ where: { key: `channel_alerts_${guildId}` } });
+    cfg = await prisma.configuracionBot.findUnique({ where: { clave: `channel_alerts_${guildId}` } });
   }
   if (!cfg) return;
 
   try {
-    const channel = (await client.channels.fetch(cfg.value)) as TextChannel;
+      const channel = (await client.channels.fetch(cfg.valor)) as TextChannel;
     if (!channel) return;
 
     const embed = new EmbedBuilder()
@@ -167,18 +167,18 @@ async function publishMemberChanges(
 
 async function publishFirstSyncTest(client: Client, guildId: string): Promise<void> {
   const alreadyDone = await prisma.configuracionBot.findUnique({
-    where: { key: `first_sync_done_${guildId}` },
+    where: { clave: `first_sync_done_${guildId}` },
   });
   if (alreadyDone) return;
 
   const channels = ['war', 'alerts', 'ranking'];
   for (const ch of channels) {
     const key = `channel_${ch}_${guildId}`;
-    const cfg = await prisma.configuracionBot.findUnique({ where: { key } });
+    const cfg = await prisma.configuracionBot.findUnique({ where: { clave: key } });
     if (!cfg) continue;
 
     try {
-      const channel = (await client.channels.fetch(cfg.value)) as TextChannel;
+    const channel = (await client.channels.fetch(cfg.valor)) as TextChannel;
       if (!channel) continue;
 
       const labels: Record<string, string> = {
@@ -201,7 +201,7 @@ async function publishFirstSyncTest(client: Client, guildId: string): Promise<vo
   }
 
   await prisma.configuracionBot.create({
-    data: { key: `first_sync_done_${guildId}`, value: '1' },
+    data: { clave: `first_sync_done_${guildId}`, valor: '1' },
   });
 }
 

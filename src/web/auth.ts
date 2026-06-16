@@ -53,7 +53,7 @@ authRouter.get('/discord/callback', async (req: Request, res: Response) => {
       res.status(404).send('No se encontró un clan vinculado a tu servidor.');
       return;
     }
-    (req.session as Record<string, unknown>).user = { id: user.id, username: user.username, clanTag: clan.tag, guildId: managedGuild.id };
+    (req.session as any).user = { id: user.id, username: user.username, clanTag: clan.tag, guildId: managedGuild.id };
     res.redirect('/dashboard');
   } catch (err) {
     console.error('Auth error:', err);

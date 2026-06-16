@@ -9,7 +9,8 @@ import logger from '../config/logger';
 
 export function registrarComandos(bot: Bot): void {
   bot.command('registrar', async (ctx: Context) => {
-    const tag = ctx.match?.trim();
+    const match = typeof ctx.match === 'string' ? ctx.match : '';
+    const tag = match.trim();
     if (!tag) {
       await ctx.reply('Usá: /registrar #TAG (ej: /registrar #PLAYER123)');
       return;
@@ -29,7 +30,7 @@ export function registrarComandos(bot: Bot): void {
         await ctx.reply('Este grupo no está vinculado a ningún clan.');
         return;
       }
-      if (!player.clanTag || formatPlayerTag(player.clanTag) !== clan.tag) {
+      if (!player.clan?.tag || formatPlayerTag(player.clan.tag) !== clan.tag) {
         await ctx.reply('Esa cuenta no pertenece al clan vinculado a este grupo.');
         return;
       }
@@ -76,7 +77,8 @@ export function registrarComandos(bot: Bot): void {
   });
 
   bot.command('perfil', async (ctx: Context) => {
-    const tag = ctx.match?.trim();
+    const match = typeof ctx.match === 'string' ? ctx.match : '';
+    const tag = match.trim();
     if (!tag) {
       await ctx.reply('Usá: /perfil #TAG');
       return;
@@ -129,7 +131,7 @@ export function registrarComandos(bot: Bot): void {
       return;
     }
     try {
-      const info = await getClanInfo(clan.tag);
+      const info = await getClanInfo(clan.tag) as any;
       const warInfo = info.currentWar;
       if (!warInfo) {
         await ctx.reply('No hay datos de guerra actual.');

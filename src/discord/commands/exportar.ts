@@ -12,7 +12,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
 
   const players = await prisma.jugador.findMany({
     where: { clanTag },
-    include: { points: { orderBy: { totalPoints: 'desc' } } },
+    include: { puntos: { orderBy: { puntosTotales: 'desc' } } },
   });
 
   if (formato === 'csv') {
@@ -23,7 +23,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
       trophies: p.trophies,
       discordId: p.idDiscord || '',
       isRegistered: p.registrado,
-      totalPoints: p.points[0]?.puntosTotales || 0,
+      totalPoints: p.puntos[0]?.puntosTotales || 0,
     }));
 
     const headers = 'tag,name,role,trophies,discordId,isRegistered,totalPoints\n';
@@ -41,7 +41,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
       trophies: p.trophies,
       discordId: p.idDiscord,
       isRegistered: p.registrado,
-      totalPoints: p.points[0]?.puntosTotales || 0,
+      totalPoints: p.puntos[0]?.puntosTotales || 0,
     }));
 
     const jsonStr = JSON.stringify(data, null, 2);

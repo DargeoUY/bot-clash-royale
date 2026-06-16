@@ -6,7 +6,7 @@ import { errorEmbed } from '../../utils/embeds';
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const guideChannelKey = `channel_guide_${interaction.guildId}`;
   const configRecord = await prisma.configuracionBot.findUnique({
-    where: { key: guideChannelKey },
+    where: { clave: guideChannelKey },
   });
 
   if (configRecord) {
@@ -14,7 +14,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
       embeds: [{
         color: 0xffd700,
         title: '📋 Guía de uso',
-        description: `La guía completa está en <#${configRecord.value}>. ¡Andá a leerla!`,
+        description: `La guía completa está en <#${configRecord.valor}>. ¡Andá a leerla!`,
       }],
       ephemeral: true,
     });

@@ -36,7 +36,7 @@ export async function checkInactivity(clanTag: string, _guildId: string | null):
       vacaciones: {
         where: {
           activo: true,
-          fechaFin: { gt: now },
+          endDate: { gt: now },
         },
       },
     },

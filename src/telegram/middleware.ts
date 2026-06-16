@@ -1,7 +1,11 @@
 import { Context } from 'grammy';
 import prisma from '../database/prisma';
 
-export async function checkTelegramMember(ctx: Context, next: () => Promise<void>): Promise<void> {
+interface CtxWithMember extends Context {
+  member?: unknown;
+}
+
+export async function checkTelegramMember(ctx: CtxWithMember, next: () => Promise<void>): Promise<void> {
   const chatId = ctx.chat?.id;
   const userId = ctx.from?.id;
   if (!chatId || !userId) {

@@ -10,7 +10,7 @@ import { startBackupTask, stopBackupTask } from '../tasks/backup-database';
 import { startIPChecker, stopIPChecker } from '../tasks/check-ip';
 import { startWeeklyRanking, stopWeeklyRanking } from '../tasks/weekly-ranking';
 import { startMonthlyRanking, stopMonthlyRanking } from '../tasks/monthly-ranking';
-import { handleInteraction } from '../events/interactionCreate';
+import { handleInteraction } from './events/interactionCreate';
 import { crGet } from '../api/client';
 import { startWebServer } from '../web';
 import { setDiscordClient } from '../services/cross-platform.service';
@@ -33,7 +33,7 @@ async function testApiConnection(): Promise<void> {
   }
 }
 
-const client = new Client({
+export const client = new Client({
   intents: [GatewayIntentBits.Guilds],
 });
 

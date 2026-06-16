@@ -6,7 +6,7 @@ import { getLeaderboard } from '../services/points.service';
 export const dashboardRouter = Router();
 
 function isAuthenticated(req: Request): boolean {
-  return !!(req.session as Record<string, unknown>)?.user;
+  return !!((req.session as any)?.user);
 }
 
 dashboardRouter.get('/dashboard', async (req: Request, res: Response) => {
@@ -14,7 +14,7 @@ dashboardRouter.get('/dashboard', async (req: Request, res: Response) => {
     res.redirect('/auth/discord');
     return;
   }
-  const session = (req.session as Record<string, unknown>).user as { clanTag: string; guildId: string; username: string };
+  const session = (req.session as any).user as { clanTag: string; guildId: string; username: string };
   try {
     const [clanInfo, lb, players] = await Promise.all([
       getClanInfo(session.clanTag),
@@ -58,7 +58,7 @@ dashboardRouter.get('/dashboard', async (req: Request, res: Response) => {
     <p>Tag: ${clanInfo.tag} · ${players.length}/50 miembros</p>
     <div class="stats">
       <div class="stat"><div class="value">${clanInfo.clanScore}</div><div class="label">Trofeos</div></div>
-      <div class="stat"><div class="value">${clanInfo.trophies || 0}</div><div class="label">Trofeos temporada</div></div>
+      <div class="stat"><div class="value">${clanInfo.clanWarTrophies || 0}</div><div class="label">Trofeos guerra</div></div>
       <div class="stat"><div class="value">${clanInfo.donationsPerWeek || 0}</div><div class="label">Donaciones/semana</div></div>
       <div class="stat"><div class="value">${clanInfo.members}/50</div><div class="label">Miembros</div></div>
     </div>

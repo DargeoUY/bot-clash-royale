@@ -36,7 +36,7 @@ export async function activateVacation(
   if (existingActive) {
     return {
       success: false,
-      message: `Ya tenés un modo vacaciones activo hasta ${existingActive.fechaFin.toLocaleDateString('es-AR')}. Usá /ausencia extender o /ausencia cancelar.`,
+      message: `Ya tenés un modo vacaciones activo hasta ${existingActive.endDate.toLocaleDateString('es-AR')}. Usá /ausencia extender o /ausencia cancelar.`,
     };
   }
 
@@ -44,11 +44,11 @@ export async function activateVacation(
   const endDate = new Date(startDate.getTime() + days * 24 * 60 * 60 * 1000);
 
   await prisma.vacacion.create({
-    data: {
+      data: {
       tagJugador: playerTag,
       reason,
-      fechaInicio: startDate,
-      fechaFin: endDate,
+      startDate,
+      endDate,
       creadoPor: createdBy,
     },
   });
@@ -85,11 +85,11 @@ export async function extendVacation(
     };
   }
 
-  const newEndDate = new Date(active.fechaFin.getTime() + additionalDays * 24 * 60 * 60 * 1000);
+  const newEndDate = new Date(active.endDate.getTime() + additionalDays * 24 * 60 * 60 * 1000);
 
   await prisma.vacacion.update({
     where: { id: active.id },
-    data: { fechaFin: newEndDate },
+    data: { endDate: newEndDate },
   });
 
   return {
@@ -120,7 +120,7 @@ export async function cancelVacation(playerTag: string): Promise<VacationResult>
 export async function processExpiredVacations(): Promise<void> {
   const now = new Date();
   const expired = await prisma.vacacion.findMany({
-    where: { activo: true, fechaFin: { lte: now } },
+    where: { activo: true, endDate: { lte: now } },
     include: { jugador: true },
   });
 
@@ -140,8 +140,8 @@ async function getVacationDaysUsed(playerTag: string, season: string): Promise<n
 
   let total = 0;
   for (const v of vacations) {
-    const start = new Date(Math.max(v.fechaInicio.getTime(), new Date(`${season}-01`).getTime()));
-    const end = new Date(Math.min(v.fechaFin.getTime(), new Date().getTime()));
+    const start = new Date(Math.max(v.startDate.getTime(), new Date(`${season}-01`).getTime()));
+    const end = new Date(Math.min(v.endDate.getTime(), new Date().getTime()));
     const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     if (days > 0) total += days;
   }
