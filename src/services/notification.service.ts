@@ -2,6 +2,7 @@ import { Client, TextChannel, EmbedBuilder } from 'discord.js';
 import prisma from '../database/prisma';
 import { InactivityCheck } from './inactivity.service';
 import { EMBED_COLOR, EMBED_ERROR_COLOR } from '../utils/embeds';
+import { sendToTelegram } from './cross-platform.service';
 import logger from '../config/logger';
 
 export async function notifyInactivePlayer(
@@ -42,30 +43,35 @@ export async function notifyInactivityChannel(
 
   const channelKey = `channel_alerts_${guildId}`;
   const cfg = await prisma.configuracionBot.findUnique({ where: { clave: channelKey } });
-  if (!cfg) return;
+  if (cfg) {
+    try {
+      const channel = (await client.channels.fetch(cfg.valor)) as TextChannel;
+      if (channel) {
+        for (const player of newAlerts) {
+          const embed = new EmbedBuilder()
+            .setTitle(`⚠️ Inactividad: ${player.nombreJugador}`)
+            .setColor(player.status === 'kick_suggested' ? EMBED_ERROR_COLOR : EMBED_COLOR)
+            .addFields(
+              { name: 'Días inactivo', value: `${player.diasInactivo}`, inline: true },
+              { name: 'Estado', value: player.status, inline: true },
+            )
+            .setFooter({ text: player.playerTag })
+            .setTimestamp();
 
-  try {
-    const channel = (await client.channels.fetch(cfg.valor)) as TextChannel;
-    if (!channel) return;
+          if (player.status === 'kick_suggested') {
+            embed.setDescription('⛔ Se sugiere revisar su permanencia en el clan.');
+          }
 
-    for (const player of newAlerts) {
-      const embed = new EmbedBuilder()
-        .setTitle(`⚠️ Inactividad: ${player.nombreJugador}`)
-        .setColor(player.status === 'kick_suggested' ? EMBED_ERROR_COLOR : EMBED_COLOR)
-        .addFields(
-          { name: 'Días inactivo', value: `${player.diasInactivo}`, inline: true },
-          { name: 'Estado', value: player.status, inline: true },
-        )
-        .setFooter({ text: player.playerTag })
-        .setTimestamp();
-
-      if (player.status === 'kick_suggested') {
-        embed.setDescription('⛔ Se sugiere revisar su permanencia en el clan.');
+          await channel.send({ embeds: [embed] });
+        }
       }
-
-      await channel.send({ embeds: [embed] });
+    } catch (error) {
+      logger.error('Error notifying inactivity channel:', error);
     }
-  } catch (error) {
-    logger.error('Error notifying inactivity channel:', error);
+  }
+
+  for (const player of newAlerts) {
+    const msg = `⚠️ *Inactividad:* ${player.nombreJugador} — ${player.diasInactivo} días (${player.status})`;
+    await sendToTelegram(guildId, msg);
   }
 }

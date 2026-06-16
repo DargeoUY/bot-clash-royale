@@ -1,52 +1,49 @@
 import cron from 'node-cron';
 import { Client } from 'discord.js';
 import prisma from '../database/prisma';
+import { assignRecluta } from '../services/role-manager.service';
 import logger from '../config/logger';
 
 let task: cron.ScheduledTask | null = null;
 
 export function startRoleUpdater(client: Client): void {
-  task = cron.schedule('0 */12 * * *', async () => {
+  task = cron.schedule('*/10 * * * *', async () => {
     logger.debug('Updating roles...');
     try {
       const guild = client.guilds.cache.first();
       if (!guild) return;
 
-      const activoKey = `role_activo_${guild.id}`;
-      const activoCfg = await prisma.configuracionBot.findUnique({ where: { key: activoKey } });
-      if (!activoCfg) return;
-
-      const activoRole = guild.roles.cache.get(activoCfg.value);
-      if (!activoRole) return;
-
-      const players = await prisma.jugador.findMany({
-        where: { isRegistered: true, discordId: { not: null } },
+      const configs = await prisma.configuracionBot.findMany({
+        where: {
+          clave: { startsWith: `role_` },
+          OR: [{ clave: `role_recluta_${guild.id}` }],
+        },
       });
+      const reclutaRoleId = configs.find((c) => c.clave === `role_recluta_${guild.id}`)?.valor;
+      if (!reclutaRoleId) return;
+      const reclutaRole = guild.roles.cache.get(reclutaRoleId);
+      if (!reclutaRole) return;
 
-      for (const player of players) {
+      const unregistered = await prisma.jugador.findMany({
+        where: { registrado: true, idDiscord: { not: null } },
+      });
+      for (const player of unregistered) {
         if (!player.idDiscord) continue;
         try {
           const member = await guild.members.fetch(player.idDiscord);
-          const isActive = player.ultimaActividad &&
-            (Date.now() - player.ultimaActividad.getTime()) / (1000 * 60 * 60 * 24) < 3;
-
-          if (isActive && !member.roles.cache.has(activoRole.id)) {
-            await member.roles.add(activoRole);
-          } else if (!isActive && member.roles.cache.has(activoRole.id)) {
-            await member.roles.remove(activoRole);
+          if (!member.roles.cache.has(reclutaRole.id)) {
+            await member.roles.add(reclutaRole);
           }
         } catch {
-          // Member not in guild or other error
+          // skip
         }
       }
-
       logger.debug('Roles updated');
     } catch (error) {
       logger.error('Role updater failed:', error);
     }
   });
-
-  logger.info('Role updater started (every 12h)');
+  logger.info('Role updater started (every 10 min)');
 }
 
 export function stopRoleUpdater(): void {

@@ -2,8 +2,20 @@ import { Interaction } from 'discord.js';
 import logger from '../../config/logger';
 import { commands } from '../commands';
 import { errorEmbed, isAdmin } from '../../utils/embeds';
+import { checkRegistered } from '../middleware/guild-check';
 
 export async function handleInteraction(interaction: Interaction): Promise<void> {
+  if (interaction.isModalSubmit()) {
+    const commandName = interaction.customId.replace('_modal', '');
+    for (const [, cmd] of commands) {
+      if (cmd.modalHandler && interaction.customId === 'auto_setup_modal') {
+        await cmd.modalHandler(interaction);
+        return;
+      }
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const command = commands.get(interaction.commandName);
@@ -18,6 +30,13 @@ export async function handleInteraction(interaction: Interaction): Promise<void>
       ephemeral: true,
     });
     return;
+  }
+
+  const publicCommands = ['registrar', 'ayuda', 'guia', 'setup', 'auto-setup', 'config', 'sync'];
+  if (!publicCommands.includes(interaction.commandName)) {
+    await interaction.deferReply({ ephemeral: true });
+    const ok = await checkRegistered(interaction);
+    if (!ok) return;
   }
 
   try {

@@ -32,7 +32,7 @@ const CHANNEL_NAMES = {
   war: '⚔️・guerra-reportes',
   alerts: '🚨・alertas-inactividad',
   ranking: '🏆・ranking-premios',
-  members: '👥・cambios-miembros',
+  members: '✈️・aeropuerto',
 };
 const ROLE_DEFS: { key: string; name: string; color: string }[] = [
   { key: 'campeon', name: '🏆 Campeón del Mes', color: '#FFD700' },
@@ -91,7 +91,7 @@ async function findOrCreateRole(guild: Guild, name: string, color: string): Prom
   return { id: created.id, created: true };
 }
 
-export async function autoCreateSetup(guild: Guild, clanTag: string): Promise<SetupResult> {
+export async function autoCreateSetup(guild: Guild, clanTag: string, chatIdTelegram?: number | null): Promise<SetupResult> {
   logger.info(`Auto-setup: configurando ${guild.name}`);
 
   let createdChannels = 0;
@@ -133,6 +133,22 @@ export async function autoCreateSetup(guild: Guild, clanTag: string): Promise<Se
     const result = await findOrCreateRole(guild, r.name, r.color);
     roles[r.key] = result.id;
     if (result.created) createdRoles++;
+  }
+
+  // === Link Telegram chat if provided ===
+  if (chatIdTelegram) {
+    await prisma.clan.upsert({
+      where: { tag: clanTag },
+      update: { idChatTelegram: chatIdTelegram, idServidorDiscord: guild.id },
+      create: { tag: clanTag, name: guild.name, idChatTelegram: chatIdTelegram, idServidorDiscord: guild.id },
+    });
+    logger.info(`Telegram chat ${chatIdTelegram} vinculado al clan ${clanTag}`);
+  } else {
+    await prisma.clan.upsert({
+      where: { tag: clanTag },
+      update: { idServidorDiscord: guild.id },
+      create: { tag: clanTag, name: guild.name, idServidorDiscord: guild.id },
+    });
   }
 
   // === Save configs in DB ===

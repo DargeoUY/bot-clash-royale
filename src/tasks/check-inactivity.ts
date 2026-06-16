@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { client } from '../bot';
+import { client } from '../discord';
 import { checkInactivity } from '../services/inactivity.service';
 import { notifyInactivePlayer, notifyInactivityChannel } from '../services/notification.service';
 import { processExpiredVacations } from '../services/vacation.service';

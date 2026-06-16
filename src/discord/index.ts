@@ -1,22 +1,24 @@
-import http from 'http';
 import { Client, GatewayIntentBits, Events } from 'discord.js';
-import { config } from './config';
-import logger from './config/logger';
-import { startSyncTasks, stopSyncTasks } from './tasks/sync-clan';
-import { startInactivityCheck, stopInactivityCheck } from './tasks/check-inactivity';
-import { startReportTasks, stopReportTasks } from './tasks/weekly-report';
-import { startMonthlyTasks, stopMonthlyTasks } from './tasks/monthly-report';
-import { startRoleUpdater, stopRoleUpdater } from './tasks/update-roles';
-import { startBackupTask, stopBackupTask } from './tasks/backup-database';
-import { startIPChecker, stopIPChecker } from './tasks/check-ip';
-import { handleInteraction } from './events/interactionCreate';
-import { crGet } from './api/client';
+import { config } from '../config';
+import logger from '../config/logger';
+import { startSyncTasks, stopSyncTasks } from '../tasks/sync-clan';
+import { startInactivityCheck, stopInactivityCheck } from '../tasks/check-inactivity';
+import { startReportTasks, stopReportTasks } from '../tasks/weekly-report';
+import { startMonthlyTasks, stopMonthlyTasks } from '../tasks/monthly-report';
+import { startRoleUpdater, stopRoleUpdater } from '../tasks/update-roles';
+import { startBackupTask, stopBackupTask } from '../tasks/backup-database';
+import { startIPChecker, stopIPChecker } from '../tasks/check-ip';
+import { startWeeklyRanking, stopWeeklyRanking } from '../tasks/weekly-ranking';
+import { startMonthlyRanking, stopMonthlyRanking } from '../tasks/monthly-ranking';
+import { handleInteraction } from '../events/interactionCreate';
+import { crGet } from '../api/client';
+import { startWebServer } from '../web';
+import { setDiscordClient } from '../services/cross-platform.service';
 
 async function testApiConnection(): Promise<void> {
   const keyPreview = config.CR_API_KEY.substring(0, 20) + '...';
   logger.info(`Config -> CR_API_BASE_URL: ${config.CR_API_BASE_URL}`);
   logger.info(`Config -> CR_API_KEY: ${keyPreview}`);
-
   try {
     const result = await crGet<object>('/clans/%2328P8RQUY');
     const name = (result as { name?: string }).name || 'unknown';
@@ -27,25 +29,21 @@ async function testApiConnection(): Promise<void> {
     logger.error('==========================================================');
     logger.error('SOLUCION: Crear nueva API key en https://developer.clashroyale.com');
     logger.error('Whitelistear la IP fija de tu VPS en la API key');
-    logger.error('Despues actualizar CR_API_KEY en .env y reiniciar el container');
     logger.error('==========================================================');
   }
 }
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-  ],
+  intents: [GatewayIntentBits.Guilds],
 });
+
+setDiscordClient(client);
 
 client.once(Events.ClientReady, async (readyClient) => {
   logger.info(`Bot conectado como ${readyClient.user.tag}`);
   logger.info(`Sirviendo ${readyClient.guilds.cache.size} servidores`);
-
   await testApiConnection();
-
-  client.user?.setActivity('/ayuda | Clash Royale', { type: 3 }); // Watching
-
+  client.user?.setActivity('/ayuda | Clash Royale', { type: 3 });
   startSyncTasks();
   startInactivityCheck();
   startReportTasks(client);
@@ -53,6 +51,8 @@ client.once(Events.ClientReady, async (readyClient) => {
   startRoleUpdater(client);
   startBackupTask();
   startIPChecker();
+  startWeeklyRanking(client);
+  startMonthlyRanking(client);
 });
 
 client.on(Events.GuildCreate, (guild) => {
@@ -71,13 +71,9 @@ client.on(Events.InteractionCreate, handleInteraction);
 
 export async function startDiscordBot(): Promise<void> {
   await client.login(config.DISCORD_TOKEN);
+  startWebServer();
   logger.info('Bot iniciado correctamente');
 }
-
-const healthServer = http.createServer((_req, res) => {
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
-});
 
 function shutdown(): void {
   logger.info('Apagando bot...');
@@ -88,23 +84,8 @@ function shutdown(): void {
   stopRoleUpdater();
   stopBackupTask();
   stopIPChecker();
+  stopWeeklyRanking();
+  stopMonthlyRanking();
   client.destroy();
-  healthServer.close();
   process.exit(0);
 }
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
-
-startBot()
-  .then(() => {
-    healthServer.listen(config.HEALTHCHECK_PORT, () => {
-      logger.info(`Healthcheck en puerto ${config.HEALTHCHECK_PORT}`);
-    });
-  })
-  .catch((error) => {
-    logger.error('Error fatal al iniciar el bot:', error);
-    process.exit(1);
-  });
-
-export { client };

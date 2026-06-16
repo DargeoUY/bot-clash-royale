@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { client } from '../bot';
+import { client } from '../discord';
 import { checkAndUpdateIP } from '../services/ip-updater.service';
 import logger from '../config/logger';
 

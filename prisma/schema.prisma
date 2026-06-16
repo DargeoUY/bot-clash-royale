@@ -15,6 +15,7 @@ model Clan {
   level          Int?
   totalMiembros  Int?
   idServidorDiscord String?
+  idChatTelegram    BigInt?
   esPrincipal    Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt()
@@ -33,6 +34,7 @@ model Jugador {
   trophies       Int?
   clanTag        String?
   idDiscord      String?
+  idTelegram     String?
   registrado     Boolean   @default(false)
   status         String    @default("active")
   ultimaActividad DateTime?
@@ -178,4 +180,14 @@ model HistorialClan {
   createdAt      DateTime @default(now())
 
   jugador       Jugador  @relation(fields: [tagJugador], references: [tag])
+}
+
+model ConexionTelegram {
+  id        Int      @id @default(autoincrement())
+  codigo    String   @unique
+  chatId    BigInt?
+  guildId   String?
+  usado     Boolean  @default(false)
+  expiraEn  DateTime
+  createdAt DateTime @default(now())
 }
