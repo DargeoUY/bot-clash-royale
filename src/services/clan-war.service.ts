@@ -29,24 +29,24 @@ export async function syncClanData(
         name: clanInfo.name,
         description: clanInfo.description,
         level: clanInfo.clanScore > 0 ? Math.floor(clanInfo.clanScore / 100) : undefined,
-        memberCount: clanInfo.members,
+        totalMiembros: clanInfo.members,
       },
       create: {
         tag: clanTag,
         name: clanInfo.name,
         description: clanInfo.description,
-        memberCount: clanInfo.members,
+        totalMiembros: clanInfo.members,
       },
     });
 
-    logger.info(`Clan synced: ${clan.name} (${clan.memberCount} members)`);
+    logger.info(`Clan synced: ${clan.name} (${clan.totalMiembros} members)`);
 
     const members = await getClanMembers(clanTag);
 
     for (const member of members) {
       const lastSeen = parseSafeDate(member.lastSeen);
 
-      await prisma.player.upsert({
+      await prisma.jugador.upsert({
         where: { tag: member.tag },
         update: {
           name: member.name,
@@ -55,7 +55,7 @@ export async function syncClanData(
           trophies: member.trophies,
           clanTag,
           status: 'active',
-          ...(lastSeen ? { lastActiveAt: lastSeen } : {}),
+          ...(lastSeen ? { ultimaActividad: lastSeen } : {}),
         },
         create: {
           tag: member.tag,
@@ -65,7 +65,7 @@ export async function syncClanData(
           trophies: member.trophies,
           clanTag,
           status: 'active',
-          ...(lastSeen ? { lastActiveAt: lastSeen } : {}),
+          ...(lastSeen ? { ultimaActividad: lastSeen } : {}),
         },
       });
     }
@@ -126,10 +126,10 @@ async function publishMemberChanges(
   if (changes.joined.length + changes.left.length + changes.rejoined.length === 0) return;
 
   const channelKey = `channel_members_${guildId}`;
-  let cfg = await prisma.botConfig.findUnique({ where: { key: channelKey } });
+  let cfg = await prisma.configuracionBot.findUnique({ where: { key: channelKey } });
 
   if (!cfg) {
-    cfg = await prisma.botConfig.findUnique({ where: { key: `channel_alerts_${guildId}` } });
+    cfg = await prisma.configuracionBot.findUnique({ where: { key: `channel_alerts_${guildId}` } });
   }
   if (!cfg) return;
 
@@ -166,7 +166,7 @@ async function publishMemberChanges(
 }
 
 async function publishFirstSyncTest(client: Client, guildId: string): Promise<void> {
-  const alreadyDone = await prisma.botConfig.findUnique({
+  const alreadyDone = await prisma.configuracionBot.findUnique({
     where: { key: `first_sync_done_${guildId}` },
   });
   if (alreadyDone) return;
@@ -174,7 +174,7 @@ async function publishFirstSyncTest(client: Client, guildId: string): Promise<vo
   const channels = ['war', 'alerts', 'ranking'];
   for (const ch of channels) {
     const key = `channel_${ch}_${guildId}`;
-    const cfg = await prisma.botConfig.findUnique({ where: { key } });
+    const cfg = await prisma.configuracionBot.findUnique({ where: { key } });
     if (!cfg) continue;
 
     try {
@@ -200,7 +200,7 @@ async function publishFirstSyncTest(client: Client, guildId: string): Promise<vo
     }
   }
 
-  await prisma.botConfig.create({
+  await prisma.configuracionBot.create({
     data: { key: `first_sync_done_${guildId}`, value: '1' },
   });
 }
@@ -217,11 +217,11 @@ export async function syncCurrentWar(clanTag: string): Promise<void> {
     const latestEntry = periodLog.items[0];
     if (!latestEntry) return;
 
-    const existingWar = await prisma.warLog.findFirst({
+    const existingWar = await prisma.registroGuerra.findFirst({
       where: {
         clanTag,
-        seasonId: String(latestEntry.seasonId),
-        warType: 'riverRace',
+        idTemporada: String(latestEntry.seasonId),
+        tipoGuerra: 'riverRace',
       },
     });
 
@@ -231,34 +231,34 @@ export async function syncCurrentWar(clanTag: string): Promise<void> {
       (s) => s.clan.tag === clanTag,
     );
 
-    const warLog = await prisma.warLog.create({
+    const warLog = await prisma.registroGuerra.create({
       data: {
         clanTag,
-        seasonId: String(latestEntry.seasonId),
-        warType: 'riverRace',
+        idTemporada: String(latestEntry.seasonId),
+        tipoGuerra: 'riverRace',
         startDate: new Date(race.periodLogs[0].periodIndex > 0 ? '' : new Date()),
         endDate: new Date(),
-        participants: clanStanding?.clan.participants.length,
+        participantes: clanStanding?.clan.participants.length,
         fame: clanStanding?.clan.fame,
       },
     });
 
     if (clanStanding) {
       for (const participant of clanStanding.clan.participants) {
-        const existingParticipant = await prisma.warParticipant.findFirst({
-          where: { warLogId: warLog.id, playerTag: participant.tag },
+        const existingParticipant = await prisma.participanteGuerra.findFirst({
+          where: { idRegistroGuerra: warLog.id, tagJugador: participant.tag },
         });
 
         if (!existingParticipant) {
-          await prisma.warParticipant.create({
+          await prisma.participanteGuerra.create({
             data: {
-              warLogId: warLog.id,
-              playerTag: participant.tag,
+              idRegistroGuerra: warLog.id,
+              tagJugador: participant.tag,
               fame: participant.fame,
-              repairPoints: participant.repairPoints,
-              boatsAttacked: participant.boatAttacks,
-              decksUsed: participant.decksUsed,
-              decksUsedToday: participant.decksUsedToday,
+              puntosReparacion: participant.repairPoints,
+              barcosAtacados: participant.boatAttacks,
+              mazosUsados: participant.decksUsed,
+              mazosUsadosHoy: participant.decksUsedToday,
             },
           });
         }

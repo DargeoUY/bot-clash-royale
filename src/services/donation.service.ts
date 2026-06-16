@@ -5,8 +5,8 @@ export async function getUnregisteredMembers(clanTag: string): Promise<
   { tag: string; name: string; role: string; trophies: number }[]
 > {
   const members = await getClanMembers(clanTag);
-  const registered = await prisma.player.findMany({
-    where: { clanTag, isRegistered: true },
+  const registered = await prisma.jugador.findMany({
+    where: { clanTag, registrado: true },
     select: { tag: true },
   });
 

@@ -9,7 +9,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
   await interaction.deferReply();
   const clanTag = await getGuildClanTag(interaction.guildId!);
 
-  const playerCount = await prisma.player.count({ where: { clanTag } });
+  const playerCount = await prisma.jugador.count({ where: { clanTag } });
 
   if (playerCount === 0) {
     await interaction.editReply({
@@ -47,7 +47,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
   const list = results
     .map((r) => {
       const icon = r.status === 'kick_suggested' ? '⛔' : r.status === 'inactive' ? '🔴' : '🟡';
-      return `${icon} **${r.playerName}** — ${r.daysInactive} días (${r.status})`;
+      return `${icon} **${r.nombreJugador}** — ${r.diasInactivo} días (${r.status})`;
     })
     .join('\n');
 

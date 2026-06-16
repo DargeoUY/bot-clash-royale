@@ -85,11 +85,11 @@ export async function checkAndUpdateIP(
 ): Promise<{ changed: boolean; oldIP?: string; newIP: string; updated: boolean }> {
   const newIP = await getPublicIP();
 
-  const storedCfg = await prisma.botConfig.findUnique({
-    where: { key: 'last_public_ip' },
+  const storedCfg = await prisma.configuracionBot.findUnique({
+    where: { clave: 'last_public_ip' },
   });
 
-  const oldIP = storedCfg?.value || '';
+  const oldIP = storedCfg?.valor || '';
 
   if (newIP === oldIP) {
     logger.debug(`IP sin cambios: ${newIP}`);
@@ -98,10 +98,10 @@ export async function checkAndUpdateIP(
 
   logger.info(`IP cambió: ${oldIP || 'ninguna'} -> ${newIP}`);
 
-  await prisma.botConfig.upsert({
-    where: { key: 'last_public_ip' },
-    update: { value: newIP },
-    create: { key: 'last_public_ip', value: newIP },
+  await prisma.configuracionBot.upsert({
+    where: { clave: 'last_public_ip' },
+    update: { valor: newIP },
+    create: { clave: 'last_public_ip', valor: newIP },
   });
 
   let updated = false;

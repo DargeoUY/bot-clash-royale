@@ -14,7 +14,7 @@ export function startSyncTasks(): void {
     for (const { clanTag } of clans) {
       try {
         const result = await syncClanData(clanTag, client);
-        logger.info(`Clan ${clanTag}: ${result.memberCount} members, +${result.changes.joined}/-${result.changes.left}`);
+        logger.info(`Clan ${clanTag}: ${result.totalMiembros} members, +${result.changes.joined}/-${result.changes.left}`);
       } catch (error) {
         logger.error(`Clan sync failed for ${clanTag}:`, error);
       }

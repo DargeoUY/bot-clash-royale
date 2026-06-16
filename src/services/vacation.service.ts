@@ -29,27 +29,27 @@ export async function activateVacation(
     };
   }
 
-  const existingActive = await prisma.vacation.findFirst({
-    where: { playerTag, isActive: true },
+  const existingActive = await prisma.vacacion.findFirst({
+    where: { tagJugador: playerTag, activo: true },
   });
 
   if (existingActive) {
     return {
       success: false,
-      message: `Ya tenés un modo vacaciones activo hasta ${existingActive.endDate.toLocaleDateString('es-AR')}. Usá /ausencia extender o /ausencia cancelar.`,
+      message: `Ya tenés un modo vacaciones activo hasta ${existingActive.fechaFin.toLocaleDateString('es-AR')}. Usá /ausencia extender o /ausencia cancelar.`,
     };
   }
 
   const startDate = new Date();
   const endDate = new Date(startDate.getTime() + days * 24 * 60 * 60 * 1000);
 
-  await prisma.vacation.create({
+  await prisma.vacacion.create({
     data: {
-      playerTag,
+      tagJugador: playerTag,
       reason,
-      startDate,
-      endDate,
-      createdBy,
+      fechaInicio: startDate,
+      fechaFin: endDate,
+      creadoPor: createdBy,
     },
   });
 
@@ -67,8 +67,8 @@ export async function extendVacation(
   playerTag: string,
   additionalDays: number,
 ): Promise<VacationResult> {
-  const active = await prisma.vacation.findFirst({
-    where: { playerTag, isActive: true },
+  const active = await prisma.vacacion.findFirst({
+    where: { tagJugador: playerTag, activo: true },
   });
 
   if (!active) {
@@ -85,11 +85,11 @@ export async function extendVacation(
     };
   }
 
-  const newEndDate = new Date(active.endDate.getTime() + additionalDays * 24 * 60 * 60 * 1000);
+  const newEndDate = new Date(active.fechaFin.getTime() + additionalDays * 24 * 60 * 60 * 1000);
 
-  await prisma.vacation.update({
+  await prisma.vacacion.update({
     where: { id: active.id },
-    data: { endDate: newEndDate },
+    data: { fechaFin: newEndDate },
   });
 
   return {
@@ -101,17 +101,17 @@ export async function extendVacation(
 }
 
 export async function cancelVacation(playerTag: string): Promise<VacationResult> {
-  const active = await prisma.vacation.findFirst({
-    where: { playerTag, isActive: true },
+  const active = await prisma.vacacion.findFirst({
+    where: { tagJugador: playerTag, activo: true },
   });
 
   if (!active) {
     return { success: false, message: 'No tenés un modo vacaciones activo.' };
   }
 
-  await prisma.vacation.update({
+  await prisma.vacacion.update({
     where: { id: active.id },
-    data: { isActive: false },
+    data: { activo: false },
   });
 
   return { success: true, message: 'Modo vacaciones cancelado. Bienvenido de vuelta.' };
@@ -119,29 +119,29 @@ export async function cancelVacation(playerTag: string): Promise<VacationResult>
 
 export async function processExpiredVacations(): Promise<void> {
   const now = new Date();
-  const expired = await prisma.vacation.findMany({
-    where: { isActive: true, endDate: { lte: now } },
-    include: { player: true },
+  const expired = await prisma.vacacion.findMany({
+    where: { activo: true, fechaFin: { lte: now } },
+    include: { jugador: true },
   });
 
   for (const vac of expired) {
-    await prisma.vacation.update({
+    await prisma.vacacion.update({
       where: { id: vac.id },
-      data: { isActive: false },
+      data: { activo: false },
     });
-    logger.info(`Vacation expired for ${vac.playerTag}`);
+    logger.info(`Vacation expired for ${vac.tagJugador}`);
   }
 }
 
 async function getVacationDaysUsed(playerTag: string, season: string): Promise<number> {
-  const vacations = await prisma.vacation.findMany({
-    where: { playerTag },
+  const vacations = await prisma.vacacion.findMany({
+    where: { tagJugador: playerTag },
   });
 
   let total = 0;
   for (const v of vacations) {
-    const start = new Date(Math.max(v.startDate.getTime(), new Date(`${season}-01`).getTime()));
-    const end = new Date(Math.min(v.endDate.getTime(), new Date().getTime()));
+    const start = new Date(Math.max(v.fechaInicio.getTime(), new Date(`${season}-01`).getTime()));
+    const end = new Date(Math.min(v.fechaFin.getTime(), new Date().getTime()));
     const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     if (days > 0) total += days;
   }

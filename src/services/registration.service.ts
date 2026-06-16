@@ -31,23 +31,23 @@ export async function registerPlayer(
       };
     }
 
-    const existingPlayer = await prisma.player.findUnique({
+    const existingPlayer = await prisma.jugador.findUnique({
       where: { tag: playerTag },
     });
 
-    if (existingPlayer?.discordId && existingPlayer.discordId !== discordId) {
+    if (existingPlayer?.idDiscord && existingPlayer?.idDiscord !== discordId) {
       return {
         success: false,
         error: `#${playerTag} ya está vinculado a otro usuario de Discord.`,
       };
     }
 
-    const player = await prisma.player.upsert({
+    const player = await prisma.jugador.upsert({
       where: { tag: playerTag },
       update: {
         name: playerInfo.name,
-        discordId,
-        isRegistered: true,
+        idDiscord: discordId,
+        registrado: true,
         expLevel: playerInfo.expLevel,
         trophies: playerInfo.trophies,
         clanTag: playerInfo.clan.tag,
@@ -55,8 +55,8 @@ export async function registerPlayer(
       create: {
         tag: playerTag,
         name: playerInfo.name,
-        discordId,
-        isRegistered: true,
+        idDiscord: discordId,
+        registrado: true,
         expLevel: playerInfo.expLevel,
         trophies: playerInfo.trophies,
         clanTag: playerInfo.clan.tag,
@@ -68,7 +68,7 @@ export async function registerPlayer(
     if (guild) {
       try {
         const reclutaKey = `role_recluta_${guild.id}`;
-        const cfg = await prisma.botConfig.findUnique({ where: { key: reclutaKey } });
+        const cfg = await prisma.configuracionBot.findUnique({ where: { key: reclutaKey } });
         if (cfg) {
           const member = await guild.members.fetch(discordId).catch(() => null);
           if (member) {

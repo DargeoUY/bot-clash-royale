@@ -8,10 +8,10 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
 
   if (subcommand === 'canal-guia') {
     const channel = interaction.options.getChannel('canal', true);
-    await prisma.botConfig.upsert({
-      where: { key: `channel_guide_${interaction.guildId}` },
-      update: { value: channel.id },
-      create: { key: `channel_guide_${interaction.guildId}`, value: channel.id },
+    await prisma.configuracionBot.upsert({
+      where: { clave: `channel_guide_${interaction.guildId}` },
+      update: { valor: channel.id },
+      create: { clave: `channel_guide_${interaction.guildId}`, valor: channel.id },
     });
     await interaction.reply({
       embeds: [createEmbed('Configuración', `Canal de guía configurado: ${channel}`)],
@@ -22,10 +22,10 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
 
   if (subcommand === 'canal-guerra') {
     const channel = interaction.options.getChannel('canal', true);
-    await prisma.botConfig.upsert({
-      where: { key: `channel_war_${interaction.guildId}` },
-      update: { value: channel.id },
-      create: { key: `channel_war_${interaction.guildId}`, value: channel.id },
+    await prisma.configuracionBot.upsert({
+      where: { clave: `channel_war_${interaction.guildId}` },
+      update: { valor: channel.id },
+      create: { clave: `channel_war_${interaction.guildId}`, valor: channel.id },
     });
     await interaction.reply({
       embeds: [createEmbed('Configuración', `Canal de guerra configurado: ${channel}`)],
@@ -36,10 +36,10 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
 
   if (subcommand === 'canal-alertas') {
     const channel = interaction.options.getChannel('canal', true);
-    await prisma.botConfig.upsert({
-      where: { key: `channel_alerts_${interaction.guildId}` },
-      update: { value: channel.id },
-      create: { key: `channel_alerts_${interaction.guildId}`, value: channel.id },
+    await prisma.configuracionBot.upsert({
+      where: { clave: `channel_alerts_${interaction.guildId}` },
+      update: { valor: channel.id },
+      create: { clave: `channel_alerts_${interaction.guildId}`, valor: channel.id },
     });
     await interaction.reply({
       embeds: [createEmbed('Configuración', `Canal de alertas configurado: ${channel}`)],
@@ -50,10 +50,10 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
 
   if (subcommand === 'canal-ranking') {
     const channel = interaction.options.getChannel('canal', true);
-    await prisma.botConfig.upsert({
-      where: { key: `channel_ranking_${interaction.guildId}` },
-      update: { value: channel.id },
-      create: { key: `channel_ranking_${interaction.guildId}`, value: channel.id },
+    await prisma.configuracionBot.upsert({
+      where: { clave: `channel_ranking_${interaction.guildId}` },
+      update: { valor: channel.id },
+      create: { clave: `channel_ranking_${interaction.guildId}`, valor: channel.id },
     });
     await interaction.reply({
       embeds: [createEmbed('Configuración', `Canal de ranking configurado: ${channel}`)],
@@ -64,10 +64,10 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
 
   if (subcommand === 'canal-miembros') {
     const channel = interaction.options.getChannel('canal', true);
-    await prisma.botConfig.upsert({
-      where: { key: `channel_members_${interaction.guildId}` },
-      update: { value: channel.id },
-      create: { key: `channel_members_${interaction.guildId}`, value: channel.id },
+    await prisma.configuracionBot.upsert({
+      where: { clave: `channel_members_${interaction.guildId}` },
+      update: { valor: channel.id },
+      create: { clave: `channel_members_${interaction.guildId}`, valor: channel.id },
     });
     await interaction.reply({
       embeds: [createEmbed('Configuración', `Canal de cambios de miembros configurado: ${channel}`)],
@@ -78,10 +78,10 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
 
   if (subcommand === 'link-whatsapp') {
     const url = interaction.options.getString('url', true);
-    await prisma.botConfig.upsert({
-      where: { key: `link_whatsapp_${interaction.guildId}` },
-      update: { value: url },
-      create: { key: `link_whatsapp_${interaction.guildId}`, value: url },
+    await prisma.configuracionBot.upsert({
+      where: { clave: `link_whatsapp_${interaction.guildId}` },
+      update: { valor: url },
+      create: { clave: `link_whatsapp_${interaction.guildId}`, valor: url },
     });
     await interaction.reply({
       embeds: [createEmbed('Configuración', `Link de WhatsApp actualizado`),
@@ -93,10 +93,10 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
 
   if (subcommand === 'link-reglamento') {
     const url = interaction.options.getString('url', true);
-    await prisma.botConfig.upsert({
-      where: { key: `link_rules_${interaction.guildId}` },
-      update: { value: url },
-      create: { key: `link_rules_${interaction.guildId}`, value: url },
+    await prisma.configuracionBot.upsert({
+      where: { clave: `link_rules_${interaction.guildId}` },
+      update: { valor: url },
+      create: { clave: `link_rules_${interaction.guildId}`, valor: url },
     });
     await interaction.reply({
       embeds: [createEmbed('Configuración', `Link de reglamento actualizado`)],
@@ -107,10 +107,10 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
 
   if (subcommand === 'umbral-inactividad') {
     const days = interaction.options.getInteger('dias', true);
-    await prisma.botConfig.upsert({
-      where: { key: `inactivity_days_${interaction.guildId}` },
-      update: { value: String(days) },
-      create: { key: `inactivity_days_${interaction.guildId}`, value: String(days) },
+    await prisma.configuracionBot.upsert({
+      where: { clave: `inactivity_days_${interaction.guildId}` },
+      update: { valor: String(days) },
+      create: { clave: `inactivity_days_${interaction.guildId}`, valor: String(days) },
     });
     await interaction.reply({
       embeds: [createEmbed('Configuración', `Umbral de inactividad configurado a ${days} días.`)],

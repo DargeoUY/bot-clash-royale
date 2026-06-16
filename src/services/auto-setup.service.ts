@@ -155,10 +155,10 @@ export async function autoCreateSetup(guild: Guild, clanTag: string): Promise<Se
 
   for (const cfg of configs) {
     try {
-      await prisma.botConfig.upsert({
-        where: { key: cfg.key },
-        update: { value: cfg.value },
-        create: { key: cfg.key, value: cfg.value },
+      await prisma.configuracionBot.upsert({
+        where: { clave: cfg.key },
+        update: { valor: cfg.value },
+        create: { clave: cfg.key, valor: cfg.value },
       });
     } catch (err) {
       logger.error(`Error saving config ${cfg.key}:`, err);

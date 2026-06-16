@@ -26,7 +26,7 @@ async function publishWeeklyReport(client: Client): Promise<void> {
   if (!guild) return;
 
   const channelKey = `channel_war_${guild.id}`;
-  const cfg = await prisma.botConfig.findUnique({ where: { key: channelKey } });
+  const cfg = await prisma.configuracionBot.findUnique({ where: { key: channelKey } });
   if (!cfg) return;
 
   try {

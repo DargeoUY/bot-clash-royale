@@ -16,7 +16,7 @@ async function executeEstado(interaction: ChatInputCommandInteraction): Promise<
 
     const embed = new EmbedBuilder()
       .setTitle('⚔️ Estado de la Guerra')
-      .setDescription(`River Race — Temporada ${race.seasonId || 'actual'}`)
+      .setDescription(`River Race — Temporada ${race.idTemporada || 'actual'}`)
       .setColor(EMBED_COLOR)
       .addFields(
         { name: 'Fama del clan', value: `${clan?.fame || 0}`, inline: true },
@@ -28,7 +28,7 @@ async function executeEstado(interaction: ChatInputCommandInteraction): Promise<
       const topParticipants = clan.participants
         .sort((a, b) => b.fame - a.fame)
         .slice(0, 5)
-        .map((p, i) => `${i + 1}. ${p.name}: ${p.fame} fama, ${p.decksUsedToday} decks hoy`)
+        .map((p, i) => `${i + 1}. ${p.name}: ${p.fame} fama, ${p.mazosUsadosHoy} decks hoy`)
         .join('\n');
 
       embed.addFields({ name: 'Top Participantes', value: topParticipants || 'Sin datos' });

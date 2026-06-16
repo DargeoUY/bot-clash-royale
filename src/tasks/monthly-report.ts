@@ -33,7 +33,7 @@ async function publishMonthlyReport(client: Client): Promise<void> {
   if (!guild) return;
 
   const channelKey = `channel_ranking_${guild.id}`;
-  const cfg = await prisma.botConfig.findUnique({ where: { key: channelKey } });
+  const cfg = await prisma.configuracionBot.findUnique({ where: { key: channelKey } });
   if (!cfg) return;
 
   try {
@@ -77,7 +77,7 @@ async function resetSeasonRoles(client: Client): Promise<void> {
   if (!guild) return;
 
   const campeonKey = `role_campeon_${guild.id}`;
-  const campeonCfg = await prisma.botConfig.findUnique({ where: { key: campeonKey } });
+  const campeonCfg = await prisma.configuracionBot.findUnique({ where: { key: campeonKey } });
   if (!campeonCfg) return;
 
   const leaderboard = await getLeaderboard(config.CLAN_TAG, 'mensual');
@@ -105,6 +105,6 @@ async function resetSeasonRoles(client: Client): Promise<void> {
 }
 
 async function getDiscordIdByPlayerTag(tag: string): Promise<string | null> {
-  const player = await prisma.player.findUnique({ where: { tag } });
-  return player?.discordId || null;
+  const player = await prisma.jugador.findUnique({ where: { tag } });
+  return player?.idDiscord || null;
 }

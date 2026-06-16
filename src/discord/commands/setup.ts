@@ -22,17 +22,17 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
   try {
     const clanInfo = await getClanInfo(clanTag, apiKey);
 
-    await prisma.botConfig.upsert({
-      where: { key: `clan_tag_${guild.id}` },
-      update: { value: clanTag },
-      create: { key: `clan_tag_${guild.id}`, value: clanTag },
+    await prisma.configuracionBot.upsert({
+      where: { clave: `clan_tag_${guild.id}` },
+      update: { valor: clanTag },
+      create: { clave: `clan_tag_${guild.id}`, valor: clanTag },
     });
 
     if (apiKey) {
-      await prisma.botConfig.upsert({
-        where: { key: `cr_api_key_${guild.id}` },
-        update: { value: apiKey },
-        create: { key: `cr_api_key_${guild.id}`, value: apiKey },
+      await prisma.configuracionBot.upsert({
+        where: { clave: `cr_api_key_${guild.id}` },
+        update: { valor: apiKey },
+        create: { clave: `cr_api_key_${guild.id}`, valor: apiKey },
       });
     }
 
@@ -42,15 +42,15 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
       update: {
         name: clanInfo.name,
         description: clanInfo.description,
-        memberCount: clanInfo.members,
-        discordGuildId: guild.id,
+        totalMiembros: clanInfo.members,
+        idServidorDiscord: guild.id,
       },
       create: {
         tag: clanTag,
         name: clanInfo.name,
         description: clanInfo.description,
-        memberCount: clanInfo.members,
-        discordGuildId: guild.id,
+        totalMiembros: clanInfo.members,
+        idServidorDiscord: guild.id,
       },
     });
 

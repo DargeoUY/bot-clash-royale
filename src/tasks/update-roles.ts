@@ -13,22 +13,22 @@ export function startRoleUpdater(client: Client): void {
       if (!guild) return;
 
       const activoKey = `role_activo_${guild.id}`;
-      const activoCfg = await prisma.botConfig.findUnique({ where: { key: activoKey } });
+      const activoCfg = await prisma.configuracionBot.findUnique({ where: { key: activoKey } });
       if (!activoCfg) return;
 
       const activoRole = guild.roles.cache.get(activoCfg.value);
       if (!activoRole) return;
 
-      const players = await prisma.player.findMany({
+      const players = await prisma.jugador.findMany({
         where: { isRegistered: true, discordId: { not: null } },
       });
 
       for (const player of players) {
-        if (!player.discordId) continue;
+        if (!player.idDiscord) continue;
         try {
-          const member = await guild.members.fetch(player.discordId);
-          const isActive = player.lastActiveAt &&
-            (Date.now() - player.lastActiveAt.getTime()) / (1000 * 60 * 60 * 24) < 3;
+          const member = await guild.members.fetch(player.idDiscord);
+          const isActive = player.ultimaActividad &&
+            (Date.now() - player.ultimaActividad.getTime()) / (1000 * 60 * 60 * 24) < 3;
 
           if (isActive && !member.roles.cache.has(activoRole.id)) {
             await member.roles.add(activoRole);

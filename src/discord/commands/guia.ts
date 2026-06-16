@@ -5,7 +5,7 @@ import { errorEmbed } from '../../utils/embeds';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const guideChannelKey = `channel_guide_${interaction.guildId}`;
-  const configRecord = await prisma.botConfig.findUnique({
+  const configRecord = await prisma.configuracionBot.findUnique({
     where: { key: guideChannelKey },
   });
 
