@@ -23,4 +23,4 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
 
-CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss && node dist/discord/index.js"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss && node dist/bot-discord.js"]
