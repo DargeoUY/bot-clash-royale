@@ -14,6 +14,7 @@ import { handleInteraction } from './events/interactionCreate';
 import { crGet } from '../api/client';
 import { startWebServer } from '../web';
 import { setDiscordClient } from '../services/cross-platform.service';
+import { startTelegramBot } from '../telegram';
 
 async function testApiConnection(): Promise<void> {
   const keyPreview = config.CR_API_KEY.substring(0, 20) + '...';
@@ -43,6 +44,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   logger.info(`Bot conectado como ${readyClient.user.tag}`);
   logger.info(`Sirviendo ${readyClient.guilds.cache.size} servidores`);
   await testApiConnection();
+  await startTelegramBot();
   client.user?.setActivity('/ayuda | Clash Royale', { type: 3 });
   startSyncTasks();
   startInactivityCheck();
