@@ -76,7 +76,7 @@ async function resetSeasonRoles(client: Client): Promise<void> {
   const guild = client.guilds.cache.first();
   if (!guild) return;
 
-  const campeonKey = `role_campeon_${guild.id}`;
+  const campeonKey = `role_campeon_mensual_${guild.id}`;
   const campeonCfg = await prisma.configuracionBot.findUnique({ where: { clave: campeonKey } });
   if (!campeonCfg) return;
 

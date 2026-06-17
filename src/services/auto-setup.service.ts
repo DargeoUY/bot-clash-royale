@@ -13,15 +13,7 @@ interface SetupResult {
     ranking: string;
     members: string;
   };
-  roles: {
-    campeon: string;
-    guerrero: string;
-    donador: string;
-    activo: string;
-    ausente: string;
-    inactivo: string;
-    recluta: string;
-  };
+  roles: Record<string, string>;
   created: { channels: number; roles: number };
 }
 
@@ -35,12 +27,15 @@ const CHANNEL_NAMES = {
   members: '✈️・aeropuerto',
 };
 const ROLE_DEFS: { key: string; name: string; color: string }[] = [
-  { key: 'campeon', name: '🏆 Campeón del Mes', color: '#FFD700' },
-  { key: 'guerrero', name: '⚔️ Guerrero Élite', color: '#9B59B6' },
-  { key: 'donador', name: '💎 Donador Legendario', color: '#FF69B4' },
-  { key: 'activo', name: '✅ Activo', color: '#2ECC71' },
-  { key: 'ausente', name: '🏖️ Ausente', color: '#F39C12' },
-  { key: 'inactivo', name: '⛔ Inactivo', color: '#E74C3C' },
+  { key: 'campeon_semanal', name: '🏆 Campeón Semanal de Copas', color: '#FFD700' },
+  { key: 'campeon_mensual', name: '🏆 Campeón Mensual de Copas', color: '#FFD700' },
+  { key: 'donador_legendario', name: '💎 Donador Legendario', color: '#FF69B4' },
+  { key: 'donador_epico', name: '💎 Donador Épico', color: '#FF69B4' },
+  { key: 'donador_poco_comun', name: '💎 Donador Poco Común', color: '#FF69B4' },
+  { key: 'guerrero_celestial', name: '🌟 Guerrero Celestial', color: '#9B59B6' },
+  { key: 'guerrero_legendario', name: '🌟 Guerrero Legendario', color: '#9B59B6' },
+  { key: 'guerrero_epico', name: '🌟 Guerrero Épico', color: '#9B59B6' },
+  { key: 'veterano', name: '🏅 Veterano', color: '#2ECC71' },
   { key: 'recluta', name: '🆕 Recluta', color: '#3498DB' },
 ];
 
@@ -153,19 +148,17 @@ export async function autoCreateSetup(guild: Guild, clanTag: string, chatIdTeleg
 
   // === Save configs in DB ===
   const guildPrefix = `${guild.id}`;
+  const roleConfigs = ROLE_DEFS.map((r) => ({
+    key: `role_${r.key}_${guildPrefix}`,
+    value: roles[r.key],
+  }));
   const configs = [
     { key: `channel_guide_${guildPrefix}`, value: guide.id },
     { key: `channel_war_${guildPrefix}`, value: war.id },
     { key: `channel_alerts_${guildPrefix}`, value: alerts.id },
     { key: `channel_ranking_${guildPrefix}`, value: ranking.id },
     { key: `channel_members_${guildPrefix}`, value: members.id },
-    { key: `role_campeon_${guildPrefix}`, value: roles.campeon },
-    { key: `role_guerrero_${guildPrefix}`, value: roles.guerrero },
-    { key: `role_donador_${guildPrefix}`, value: roles.donador },
-    { key: `role_activo_${guildPrefix}`, value: roles.activo },
-    { key: `role_ausente_${guildPrefix}`, value: roles.ausente },
-    { key: `role_inactivo_${guildPrefix}`, value: roles.inactivo },
-    { key: `role_recluta_${guildPrefix}`, value: roles.recluta },
+    ...roleConfigs,
     { key: `clan_tag_${guildPrefix}`, value: clanTag },
   ];
 
@@ -214,15 +207,7 @@ export async function autoCreateSetup(guild: Guild, clanTag: string, chatIdTeleg
       ranking: ranking.id,
       members: members.id,
     },
-    roles: {
-      campeon: roles.campeon,
-      guerrero: roles.guerrero,
-      donador: roles.donador,
-      activo: roles.activo,
-      ausente: roles.ausente,
-      inactivo: roles.inactivo,
-      recluta: roles.recluta,
-    },
+    roles,
     created: { channels: createdChannels, roles: createdRoles },
   };
 }
