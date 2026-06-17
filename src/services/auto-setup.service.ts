@@ -27,6 +27,8 @@ const CHANNEL_NAMES = {
   members: '✈️・aeropuerto',
 };
 const ROLE_DEFS: { key: string; name: string; color: string }[] = [
+  { key: 'lider', name: '👑 Líder', color: '#FF0000' },
+  { key: 'colider', name: '⭐ Co-Líder', color: '#FF4500' },
   { key: 'campeon_semanal', name: '🏆 Campeón Semanal de Copas', color: '#FFD700' },
   { key: 'campeon_mensual', name: '🏆 Campeón Mensual de Copas', color: '#FFD700' },
   { key: 'donador_legendario', name: '💎 Donador Legendario', color: '#FF69B4' },
