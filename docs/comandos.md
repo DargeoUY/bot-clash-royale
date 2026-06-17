@@ -169,6 +169,17 @@ Modelos Prisma utilizados por los comandos:
    - Si es primera vez o empeoró, registra en `RegistroInactividad`
 3. Muestra los resultados agrupados por nivel de gravedad
 
+**Detalle técnico: cálculo de `ultimaActividad`:**
+- El campo `ultimaActividad` se actualiza cada 5 minutos desde la API de Clash Royale (`GET /v1/clans/{tag}/members` → `member.lastSeen`)
+- La API devuelve `lastSeen` en un formato propio: `YYYYMMDDTHHmmss.sssZ` (ej: `"20260617T205221.000Z"`)
+- JavaScript `new Date()` **no reconoce** este formato porque le faltan los guiones en la fecha y los dos puntos en la hora
+- En `clan-war.service.ts`, la función `parseSafeDate()` normaliza el string con una regex antes de parsearlo:
+  ```
+  "20260617T205221.000Z" → "2026-06-17T20:52:21.000Z"
+  ```
+- Solo así se genera un `Date` válido que se guarda en `ultimaActividad`
+- Si `parseSafeDate()` falla (porque la API cambia el formato), `ultimaActividad` queda `null` y el jugador nunca es detectado como inactivo
+
 **Interacción con DB:**
 - **Lee:** `Clan` (totalMiembros), `Jugador` (ultimaActividad, vacaciones), `RegistroInactividad`
 - **Escribe:** `RegistroInactividad` (cuando corresponde notificar), `Jugador.status`
