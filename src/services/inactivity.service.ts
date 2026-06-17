@@ -1,45 +1,53 @@
 import prisma from '../database/prisma';
 import { config } from '../config';
 import logger from '../config/logger';
-import { addPoints } from './points.service';
 
 export interface InactivityCheck {
   playerTag: string;
   nombreJugador: string;
   idDiscord: string | null;
-  idTelegram: string | null;
   diasInactivo: number;
   status: 'active' | 'warning' | 'inactive' | 'kick_suggested';
   shouldNotify: boolean;
-  ultimaActividad: Date | null;
+}
+
+export function statusDisplay(status: string): string {
+  const map: Record<string, string> = {
+    warning: 'aviso',
+    inactive: 'inactivo',
+    kick_suggested: 'expulsion',
+    active: 'activo',
+  };
+  return map[status] || status;
 }
 
 function getThresholds(memberCount: number): { warning: number; inactive: number; kick: number } {
-  if (memberCount >= 43) return { warning: 2, inactive: 4, kick: 6 };
-  if (memberCount >= 30) return { warning: 2, inactive: 5, kick: 10 };
+  if (memberCount >= 43) {
+    return { warning: 2, inactive: 4, kick: 6 };
+  } else if (memberCount >= 30) {
+    return { warning: 2, inactive: 5, kick: 10 };
+  }
   return { warning: 2, inactive: 7, kick: 14 };
 }
 
-export async function checkInactivity(clanTag: string, guildId: string | null): Promise<InactivityCheck[]> {
+export async function checkInactivity(clanTag: string, _guildId: string | null): Promise<InactivityCheck[]> {
   const clan = await prisma.clan.findUnique({ where: { tag: clanTag } });
   if (!clan) return [];
 
-  let baseThreshold = config.INACTIVITY_THRESHOLD_DAYS;
-  if (guildId) {
-    const thresholdCfg = await prisma.configuracionBot.findUnique({
-      where: { clave: `inactivity_days_${guildId}` },
-    });
-    if (thresholdCfg) baseThreshold = parseInt(thresholdCfg.valor, 10) || baseThreshold;
-  }
-
   const thresholds = getThresholds(clan.totalMiembros || 50);
+  const baseThreshold = config.INACTIVITY_THRESHOLD_DAYS;
   const now = new Date();
 
   const players = await prisma.jugador.findMany({
-    where: { clanTag },
+    where: {
+      clanTag,
+    },
     include: {
       vacaciones: {
-        where: { activo: true, endDate: { gt: now } },
+        where: {
+          activo: true,
+          endDate: { gt: now },
+        },
       },
     },
   });
@@ -47,37 +55,22 @@ export async function checkInactivity(clanTag: string, guildId: string | null): 
   const results: InactivityCheck[] = [];
 
   for (const player of players) {
-    const onVacation = player.vacaciones.length > 0;
-    if (onVacation) {
-      if (player.status !== 'active') {
-        await prisma.jugador.update({ where: { tag: player.tag }, data: { status: 'active' } });
-      }
-      continue;
-    }
-
+    if (player.vacaciones.length > 0) continue;
     if (!player.ultimaActividad) continue;
 
     const daysInactive = Math.floor(
       (now.getTime() - player.ultimaActividad.getTime()) / (1000 * 60 * 60 * 24),
     );
 
-    if (daysInactive < 0) continue;
-
-    if (daysInactive < baseThreshold) {
-      if (player.status !== 'active') {
-        await prisma.jugador.update({ where: { tag: player.tag }, data: { status: 'active' } });
-        logger.info(`Player ${player.name} re-activated`);
-      }
-      continue;
-    }
+    if (daysInactive < baseThreshold) continue;
 
     let status: InactivityCheck['status'] = 'active';
-    if (daysInactive >= thresholds.kick) status = 'kick_suggested';
-    else if (daysInactive >= thresholds.inactive) status = 'inactive';
-    else if (daysInactive >= thresholds.warning) status = 'warning';
-
-    if (player.status !== status) {
-      await prisma.jugador.update({ where: { tag: player.tag }, data: { status } });
+    if (daysInactive >= thresholds.kick) {
+      status = 'kick_suggested';
+    } else if (daysInactive >= thresholds.inactive) {
+      status = 'inactive';
+    } else if (daysInactive >= thresholds.warning) {
+      status = 'warning';
     }
 
     const existingLog = await prisma.registroInactividad.findFirst({
@@ -95,27 +88,21 @@ export async function checkInactivity(clanTag: string, guildId: string | null): 
           status,
           notificadoEn: new Date(),
           vecesNotificado: (existingLog?.vecesNotificado || 0) + 1,
-          ultimaNotificacion: new Date(),
         },
       });
-
-      if (status !== 'warning') {
-        await addPoints(player.tag, -2 * daysInactive, 'penalty', `Inactividad: ${daysInactive} días`);
-      }
     }
 
     results.push({
       playerTag: player.tag,
       nombreJugador: player.name,
       idDiscord: player.idDiscord,
-      idTelegram: player.idTelegram,
       diasInactivo: daysInactive,
       status,
       shouldNotify,
-      ultimaActividad: player.ultimaActividad,
     });
   }
 
+  logger.info(`Inactivity check: ${results.length} players flagged (clan size: ${clan.totalMiembros})`);
   return results;
 }
 

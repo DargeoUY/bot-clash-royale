@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { Client } from 'discord.js';
 import { checkInactivity } from '../services/inactivity.service';
-import { notifyInactivePlayer, notifyInactivityChannel, notifyDailyInactivitySummary, assignInactivityRoles } from '../services/notification.service';
+import { notifyInactivePlayer, notifyInactivityChannel, notifyDailyInactivitySummary } from '../services/notification.service';
 import { processExpiredVacations } from '../services/vacation.service';
 import { getAllClanConfigs } from '../utils/guild';
 import logger from '../config/logger';
@@ -9,7 +9,7 @@ import logger from '../config/logger';
 let checkTask: cron.ScheduledTask | null = null;
 let dailyTask: cron.ScheduledTask | null = null;
 
-async function runInactivityCheck(client: Client): Promise<void> {
+export async function runInactivityCheck(client: Client): Promise<void> {
   logger.debug('Running inactivity check for all clans...');
   try {
     await processExpiredVacations();
@@ -22,7 +22,6 @@ async function runInactivityCheck(client: Client): Promise<void> {
           await notifyInactivePlayer(client, player);
         }
         await notifyInactivityChannel(client, guildId, results);
-        await assignInactivityRoles(client, guildId, results);
       } catch (err) {
         logger.error(`Inactivity check failed for ${clanTag}:`, err);
       }
@@ -36,6 +35,7 @@ async function runInactivityCheck(client: Client): Promise<void> {
 
 export function startInactivityCheck(client: Client): void {
   checkTask = cron.schedule('0 */6 * * *', () => runInactivityCheck(client));
+
   dailyTask = cron.schedule('0 8 * * *', async () => {
     logger.info('Running daily inactivity report...');
     try {
@@ -45,7 +45,6 @@ export function startInactivityCheck(client: Client): void {
         try {
           const results = await checkInactivity(clanTag, guildId);
           await notifyDailyInactivitySummary(client, guildId, results);
-          await assignInactivityRoles(client, guildId, results);
         } catch (err) {
           logger.error(`Daily inactivity report failed for ${clanTag}:`, err);
         }

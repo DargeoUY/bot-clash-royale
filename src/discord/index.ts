@@ -2,7 +2,7 @@ import { Client, GatewayIntentBits, Events } from 'discord.js';
 import { config } from '../config';
 import logger from '../config/logger';
 import { startSyncTasks, stopSyncTasks } from '../tasks/sync-clan';
-import { startInactivityCheck, stopInactivityCheck } from '../tasks/check-inactivity';
+import { startInactivityCheck, stopInactivityCheck, runInactivityCheck } from '../tasks/check-inactivity';
 import { startReportTasks, stopReportTasks } from '../tasks/weekly-report';
 import { startMonthlyTasks, stopMonthlyTasks } from '../tasks/monthly-report';
 import { startRoleUpdater, stopRoleUpdater } from '../tasks/update-roles';
@@ -35,7 +35,7 @@ async function testApiConnection(): Promise<void> {
 }
 
 export const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
+  intents: [GatewayIntentBits.Guilds],
 });
 
 setDiscordClient(client);
@@ -48,6 +48,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   client.user?.setActivity('/ayuda | Clash Royale', { type: 3 });
   startSyncTasks();
   startInactivityCheck(client);
+  runInactivityCheck(client);
   startReportTasks(client);
   startMonthlyTasks(client);
   startRoleUpdater(client);
