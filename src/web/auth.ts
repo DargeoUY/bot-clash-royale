@@ -37,10 +37,15 @@ authRouter.get('/discord/callback', async (req: Request, res: Response) => {
     const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
-    const guilds = guildsRes.data as { id: string; owner: boolean; permissions: number }[];
+    const guilds = guildsRes.data as { id: string; owner: boolean; permissions: string }[];
     const managedGuild = guilds.find((g) => {
-      const perm = g.permissions;
-      return (perm & 0x20) !== 0 || g.owner;
+      if (g.owner) return true;
+      try {
+        const perms = BigInt(g.permissions);
+        return (perms & BigInt(0x20)) !== BigInt(0);
+      } catch {
+        return false;
+      }
     });
     if (!managedGuild) {
       res.status(403).send('No tenés permisos para administrar ningún servidor.');
