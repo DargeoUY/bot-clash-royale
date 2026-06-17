@@ -39,6 +39,8 @@ model Jugador {
   status         String    @default("active")
   ultimaActividad DateTime?
   salioEn        DateTime?
+  trofeosInicioSemana Int?
+  trofeosInicioMes    Int?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt()
 

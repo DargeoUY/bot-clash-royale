@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { Client } from 'discord.js';
-import { generateWeeklyReport } from '../services/ranking.service';
+import { generateWeeklyReport, resetWeeklyBaseline } from '../services/ranking.service';
 import { getAllClanConfigs } from '../utils/guild';
 import { broadcastToGuild } from '../services/cross-platform.service';
 import logger from '../config/logger';
@@ -15,6 +15,7 @@ export function startWeeklyRanking(client: Client): void {
       try {
         const report = await generateWeeklyReport(clanTag);
         await broadcastToGuild(guildId, report);
+        await resetWeeklyBaseline(clanTag);
       } catch (err) {
         logger.error(`Weekly ranking failed for ${clanTag}:`, err);
       }

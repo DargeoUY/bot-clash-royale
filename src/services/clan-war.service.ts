@@ -63,6 +63,8 @@ export async function syncClanData(
           role: member.role,
           expLevel: member.expLevel,
           trophies: member.trophies,
+          trofeosInicioSemana: member.trophies,
+          trofeosInicioMes: member.trophies,
           clanTag,
           status: 'active',
           ...(lastSeen ? { ultimaActividad: lastSeen } : {}),
