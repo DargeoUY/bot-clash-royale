@@ -45,6 +45,9 @@ export async function syncClanData(
 
     for (const member of members) {
       const lastSeen = parseSafeDate(member.lastSeen);
+      if (!lastSeen) {
+        logger.warn(`lastSeen inválido para ${member.name}: "${member.lastSeen}" (tipo=${typeof member.lastSeen})`);
+      }
 
       await prisma.jugador.upsert({
         where: { tag: member.tag },

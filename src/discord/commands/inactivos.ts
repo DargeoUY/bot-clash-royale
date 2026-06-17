@@ -6,7 +6,6 @@ import { EMBED_COLOR } from '../../utils/embeds';
 import prisma from '../../database/prisma';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.deferReply();
   try {
     const clanTag = await getGuildClanTag(interaction.guildId!);
 
