@@ -38,7 +38,12 @@ authRouter.get('/discord/callback', async (req: Request, res: Response) => {
       headers: { Authorization: `Bearer ${access_token}` },
     });
     const guilds = guildsRes.data as { id: string; owner: boolean; permissions: string }[];
+    const clanServerIds = (await prisma.clan.findMany({ select: { idServidorDiscord: true } }))
+      .map((c) => c.idServidorDiscord)
+      .filter(Boolean);
+
     const managedGuild = guilds.find((g) => {
+      if (!clanServerIds.includes(g.id)) return false;
       if (g.owner) return true;
       try {
         const perms = BigInt(g.permissions);
@@ -48,7 +53,7 @@ authRouter.get('/discord/callback', async (req: Request, res: Response) => {
       }
     });
     if (!managedGuild) {
-      res.status(403).send('No tenés permisos para administrar ningún servidor.');
+      res.status(403).send('No tenés permisos para administrar el servidor vinculado al clan.');
       return;
     }
     const clan = await prisma.clan.findFirst({
