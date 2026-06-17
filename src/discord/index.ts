@@ -35,7 +35,7 @@ async function testApiConnection(): Promise<void> {
 }
 
 export const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
+  intents: [GatewayIntentBits.Guilds],
 });
 
 setDiscordClient(client);
