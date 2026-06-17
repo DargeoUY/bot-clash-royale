@@ -15,6 +15,8 @@ import { crGet } from '../api/client';
 import { startWebServer } from '../web';
 import { setDiscordClient } from '../services/cross-platform.service';
 import { startTelegramBot } from '../telegram';
+import { syncClanData, syncCurrentWar } from '../services/clan-war.service';
+import { getAllClanConfigs } from '../utils/guild';
 
 async function testApiConnection(): Promise<void> {
   const keyPreview = config.CR_API_KEY.substring(0, 20) + '...';
@@ -46,6 +48,19 @@ client.once(Events.ClientReady, async (readyClient) => {
   await testApiConnection();
   await startTelegramBot();
   client.user?.setActivity('/ayuda | Clash Royale', { type: 3 });
+
+  // Sincronización inmediata: alimenta la DB al iniciar
+  try {
+    const clans = await getAllClanConfigs();
+    for (const { clanTag } of clans) {
+      logger.info(`Sincronización inicial: ${clanTag}`);
+      await syncClanData(clanTag, readyClient);
+      await syncCurrentWar(clanTag);
+    }
+  } catch (err) {
+    logger.error('Error en sincronización inicial:', err);
+  }
+
   startSyncTasks();
   startInactivityCheck(client);
   runInactivityCheck(client);

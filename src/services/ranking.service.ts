@@ -94,14 +94,14 @@ export async function getWarRanking(clanTag: string): Promise<{ tag: string; nam
 
 export async function resetWeeklyBaseline(clanTag: string): Promise<void> {
   await prisma.$executeRawUnsafe(
-    `UPDATE Jugador SET trofeosInicioSemana = trophies WHERE clanTag = ?`,
+    `UPDATE Jugador SET trofeosInicioSemana = trofeos WHERE clanTag = ?`,
     clanTag,
   );
 }
 
 export async function resetMonthlyBaseline(clanTag: string): Promise<void> {
   await prisma.$executeRawUnsafe(
-    `UPDATE Jugador SET trofeosInicioMes = trophies WHERE clanTag = ?`,
+    `UPDATE Jugador SET trofeosInicioMes = trofeos WHERE clanTag = ?`,
     clanTag,
   );
 }
