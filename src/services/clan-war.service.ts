@@ -217,7 +217,7 @@ export async function syncCurrentWar(clanTag: string): Promise<void> {
     if (!periodLog) return;
 
     const latestEntry = periodLog.items[0];
-    if (!latestEntry) return;
+    if (!latestEntry || !latestEntry.standings) return;
 
     const existingWar = await prisma.registroGuerra.findFirst({
       where: {
