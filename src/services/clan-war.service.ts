@@ -9,7 +9,12 @@ import logger from '../config/logger';
 function parseSafeDate(value: string | undefined | null): Date | null {
   if (!value) return null;
   try {
-    const d = new Date(value);
+    // CR API devuelve "YYYYMMDDTHHmmss.sssZ" sin guiones/colores
+    const normalized = value.replace(
+      /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/,
+      '$1-$2-$3T$4:$5:$6',
+    );
+    const d = new Date(normalized);
     return isNaN(d.getTime()) ? null : d;
   } catch {
     return null;
@@ -45,9 +50,6 @@ export async function syncClanData(
 
     for (const member of members) {
       const lastSeen = parseSafeDate(member.lastSeen);
-      if (!lastSeen) {
-        logger.warn(`lastSeen inválido para ${member.name}: "${member.lastSeen}" (tipo=${typeof member.lastSeen})`);
-      }
 
       await prisma.jugador.upsert({
         where: { tag: member.tag },
