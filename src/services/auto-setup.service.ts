@@ -39,6 +39,8 @@ const ROLE_DEFS: { key: string; name: string; color: string }[] = [
   { key: 'guerrero_epico', name: '🌟 Guerrero Épico', color: '#9B59B6' },
   { key: 'veterano', name: '🏅 Veterano', color: '#2ECC71' },
   { key: 'recluta', name: '🆕 Recluta', color: '#3498DB' },
+  { key: 'inactive', name: '🟡 Inactivo', color: '#E67E22' },
+  { key: 'ausente', name: '🟢 Ausente', color: '#1ABC9C' },
 ];
 
 async function findOrCreateChannel(

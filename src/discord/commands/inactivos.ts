@@ -7,54 +7,67 @@ import prisma from '../../database/prisma';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply();
-  const clanTag = await getGuildClanTag(interaction.guildId!);
+  try {
+    const clanTag = await getGuildClanTag(interaction.guildId!);
 
-  const playerCount = await prisma.jugador.count({ where: { clanTag } });
+    const playerCount = await prisma.jugador.count({ where: { clanTag } });
 
-  if (playerCount === 0) {
+    if (playerCount === 0) {
+      await interaction.editReply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('⚠️ Sin datos locales')
+            .setDescription('No hay miembros sincronizados todavía.\nEjecutá **/clan sincronizar** primero para importar los datos.')
+            .setColor(EMBED_COLOR)
+            .setTimestamp(),
+        ],
+      });
+      return;
+    }
+
+    const results = await checkInactivity(clanTag, interaction.guildId);
+
+    if (results.length === 0) {
+      await interaction.editReply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('✅ Sin inactivos')
+            .setDescription('Todos los miembros registrados están activos.')
+            .setColor(EMBED_COLOR)
+            .setTimestamp(),
+        ],
+      });
+      return;
+    }
+
+    const warning = results.filter((r) => r.status === 'warning');
+    const inactive = results.filter((r) => r.status === 'inactive');
+    const kick = results.filter((r) => r.status === 'kick_suggested');
+
+    const lines: string[] = [];
+    if (kick.length > 0) lines.push('⛔ **Para expulsión:**', ...kick.map((p) => `  • ${p.nombreJugador} — ${p.diasInactivo} días`), '');
+    if (inactive.length > 0) lines.push('🔴 **Inactivos:**', ...inactive.map((p) => `  • ${p.nombreJugador} — ${p.diasInactivo} días`), '');
+    if (warning.length > 0) lines.push('🟡 **Aviso:**', ...warning.map((p) => `  • ${p.nombreJugador} — ${p.diasInactivo} días`));
+
+    const embed = new EmbedBuilder()
+      .setTitle('⚠️ Miembros Inactivos')
+      .setDescription(lines.join('\n'))
+      .setColor(EMBED_COLOR)
+      .setFooter({ text: `Total: ${results.length} inactivos` })
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
     await interaction.editReply({
       embeds: [
         new EmbedBuilder()
-          .setTitle('⚠️ Sin datos locales')
-          .setDescription('No hay miembros sincronizados todavía.\nEjecutá **/clan sincronizar** primero para importar los datos.')
-          .setColor(EMBED_COLOR)
+          .setTitle('❌ Error')
+          .setDescription(`Error al consultar inactivos: ${(error as Error).message}`)
+          .setColor(0xFF0000)
           .setTimestamp(),
       ],
     });
-    return;
   }
-
-  const results = await checkInactivity(clanTag, interaction.guildId);
-
-  if (results.length === 0) {
-    await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle('✅ Sin inactivos')
-          .setDescription('Todos los miembros registrados están activos.')
-          .setColor(EMBED_COLOR)
-          .setTimestamp(),
-      ],
-    });
-    return;
-  }
-
-  const embed = new EmbedBuilder()
-    .setTitle('⚠️ Miembros Inactivos')
-    .setColor(EMBED_COLOR)
-    .setTimestamp();
-
-  const list = results
-    .map((r) => {
-      const icon = r.status === 'kick_suggested' ? '⛔' : r.status === 'inactive' ? '🔴' : '🟡';
-      return `${icon} **${r.nombreJugador}** — ${r.diasInactivo} días (${r.status})`;
-    })
-    .join('\n');
-
-  embed.setDescription(list);
-  embed.setFooter({ text: `Total: ${results.length} inactivos` });
-
-  await interaction.editReply({ embeds: [embed] });
 }
 
 export const inactivos: BotCommand = {

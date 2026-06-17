@@ -35,7 +35,7 @@ async function testApiConnection(): Promise<void> {
 }
 
 export const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
 });
 
 setDiscordClient(client);
@@ -47,7 +47,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   await startTelegramBot();
   client.user?.setActivity('/ayuda | Clash Royale', { type: 3 });
   startSyncTasks();
-  startInactivityCheck();
+  startInactivityCheck(client);
   startReportTasks(client);
   startMonthlyTasks(client);
   startRoleUpdater(client);
