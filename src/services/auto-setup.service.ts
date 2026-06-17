@@ -45,10 +45,11 @@ async function findOrCreateChannel(
   categoryId: string,
   readOnly = false,
 ): Promise<{ id: string; channel?: TextChannel }> {
+  await guild.channels.fetch();
   const existing = guild.channels.cache.find(
     (c) =>
       c.type === ChannelType.GuildText &&
-      c.name === name &&
+      c.name.toLowerCase() === name.toLowerCase() &&
       c.parentId === categoryId,
   );
   if (existing) {
@@ -75,7 +76,8 @@ async function findOrCreateChannel(
 }
 
 async function findOrCreateRole(guild: Guild, name: string, color: string): Promise<{ id: string; created: boolean }> {
-  const existing = guild.roles.cache.find((r) => r.name === name);
+  await guild.roles.fetch();
+  const existing = guild.roles.cache.find((r) => r.name.toLowerCase() === name.toLowerCase());
   if (existing) {
     logger.debug(`Role exists: ${name}`);
     return { id: existing.id, created: false };
@@ -93,8 +95,9 @@ export async function autoCreateSetup(guild: Guild, clanTag: string, chatIdTeleg
   let createdRoles = 0;
 
   // === Category ===
+  await guild.channels.fetch();
   const catExisting = guild.channels.cache.find(
-    (c) => c.type === ChannelType.GuildCategory && c.name === CATEGORY_NAME,
+    (c) => c.type === ChannelType.GuildCategory && c.name.toLowerCase() === CATEGORY_NAME.toLowerCase(),
   );
   let categoryId: string;
   if (catExisting) {
