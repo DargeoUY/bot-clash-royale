@@ -54,13 +54,20 @@ export async function checkInactivity(clanTag: string, _guildId: string | null):
 
   const results: InactivityCheck[] = [];
 
+  logger.info(`Inactivity: ${players.length} players, baseThreshold=${baseThreshold}, thresholds=${JSON.stringify(thresholds)}`);
+
   for (const player of players) {
     if (player.vacaciones.length > 0) continue;
-    if (!player.ultimaActividad) continue;
+    if (!player.ultimaActividad) {
+      logger.info(`  ${player.name}: sin ultimaActividad`);
+      continue;
+    }
 
     const daysInactive = Math.floor(
       (now.getTime() - player.ultimaActividad.getTime()) / (1000 * 60 * 60 * 24),
     );
+
+    logger.info(`  ${player.name}: ultAct=${player.ultimaActividad.toISOString()}, days=${daysInactive}`);
 
     if (daysInactive < baseThreshold) continue;
 
