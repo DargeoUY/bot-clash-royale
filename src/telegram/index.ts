@@ -48,20 +48,34 @@ if (bot) {
     'Comandos:\n' +
     '/registrar #TAG — Vincular tu cuenta\n' +
     '/clan — Info del clan\n' +
-    '/perfil #TAG — Perfil de jugador\n' +
+    '/perfil [tag] — Perfil de jugador\n' +
+    '/ranking <tipo> <periodo> — Rankings\n' +
     '/guerra — Estado de guerra\n' +
-    '/ranking — Tabla de posiciones\n' +
+    '/puntos <tag> — Ver tus puntos\n' +
+    '/ausencia <días> [motivo] — Modo vacaciones\n' +
+    '/inactivos — Ver inactivos\n' +
+    '/guia — Guía del bot\n' +
     '/ayuda — Esta ayuda',
   ));
 
   bot.command('ayuda', (ctx) => {
     ctx.reply(
-      'Comandos disponibles (requieren registro):\n' +
-      '/clan — Info del clan\n' +
-      '/perfil #TAG — Perfil de jugador\n' +
+      '🤖 *Comandos disponibles*\n\n' +
+      '👤 *Jugadores*\n' +
+      '/registrar #TAG — Vincular cuenta\n' +
+      '/perfil [tag] — Ver perfil\n' +
+      '/ranking <tipo> <periodo> — Rankings\n' +
+      '   Tipos: trofeos, donaciones, guerra, puntos\n' +
+      '   Periodo: semanal, mensual\n' +
+      '/puntos <tag> — Ver puntos acumulados\n' +
       '/guerra — Estado de guerra\n' +
-      '/ranking — Tabla de posiciones\n' +
-      '/registrar #TAG — Vincular tu cuenta',
+      '/ausencia <días> [motivo] — Vacaciones\n\n' +
+      '⚙️ *Información*\n' +
+      '/clan — Info del clan\n' +
+      '/inactivos — Miembros inactivos\n' +
+      '/guia — Guía completa\n' +
+      '/ayuda — Esta ayuda',
+      { parse_mode: 'Markdown' },
     );
   });
 

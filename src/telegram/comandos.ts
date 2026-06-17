@@ -3,7 +3,10 @@ import { getClanInfo } from '../api/clan';
 import { getPlayerInfo } from '../api/player';
 import { isValidPlayerTag, formatPlayerTag } from '../utils/validators';
 import { getLeaderboard } from '../services/points.service';
+import { getPlayerPoints } from '../services/points.service';
 import { getWeeklyTrophyRanking, getMonthlyTrophyRanking, getDonationRanking, getWarRanking } from '../services/ranking.service';
+import { activateVacation } from '../services/vacation.service';
+import { checkInactivity } from '../services/inactivity.service';
 import prisma from '../database/prisma';
 import { checkTelegramMember } from './middleware';
 import logger from '../config/logger';
@@ -81,7 +84,20 @@ export function registrarComandos(bot: Bot): void {
     const match = typeof ctx.match === 'string' ? ctx.match : '';
     const tag = match.trim();
     if (!tag) {
-      await ctx.reply('Usá: /perfil #TAG');
+      const player = await prisma.jugador.findFirst({
+        where: { idTelegram: String(ctx.from!.id) },
+      });
+      if (!player) {
+        await ctx.reply('No estás registrado. Usá /perfil #TAG o registrate con /registrar.');
+        return;
+      }
+      await ctx.reply(
+        `🏆 ${player.name}\n` +
+        `Tag: ${player.tag}\n` +
+        `Trofeos: ${player.trophies || 0}\n` +
+        `Rol: ${player.role || 'miembro'}\n` +
+        `Registrado: ✅`,
+      );
       return;
     }
     try {
@@ -188,5 +204,85 @@ export function registrarComandos(bot: Bot): void {
     } catch {
       await ctx.reply('Error al obtener datos de guerra.');
     }
+  });
+
+  bot.command('puntos', async (ctx: Context) => {
+    const match = typeof ctx.match === 'string' ? ctx.match : '';
+    const tag = match.trim();
+    if (!tag) {
+      await ctx.reply('Usá: /puntos #TAG');
+      return;
+    }
+    try {
+      const pts = await getPlayerPoints(tag);
+      await ctx.reply(
+        `⭐ Puntos de ${tag}\n\n` +
+        `Total: ${pts.total}\n` +
+        `⚔️ Guerra: ${pts.war}\n` +
+        `📋 Actividad: ${pts.activity}\n` +
+        `🎁 Extra: ${pts.bonus}\n` +
+        `Temporada: ${pts.season}`,
+      );
+    } catch {
+      await ctx.reply('Error al obtener puntos.');
+    }
+  });
+
+  bot.command('ausencia', async (ctx: Context) => {
+    const args = (typeof ctx.match === 'string' ? ctx.match : '').trim().split(/\s+/);
+    const daysStr = args[0];
+    const reason = args.slice(1).join(' ') || null;
+    if (!daysStr || isNaN(Number(daysStr))) {
+      await ctx.reply('Usá: /ausencia <días> [motivo]\nEj: /ausencia 5 Estoy de viaje');
+      return;
+    }
+    const days = parseInt(daysStr, 10);
+    const player = await prisma.jugador.findFirst({
+      where: { idTelegram: String(ctx.from!.id) },
+    });
+    if (!player) {
+      await ctx.reply('No estás registrado. Usá /registrar primero.');
+      return;
+    }
+    try {
+      const result = await activateVacation(player.tag, days, reason, `telegram:${ctx.from!.id}`);
+      await ctx.reply(result.success ? `✅ ${result.message}` : `❌ ${result.message}`);
+    } catch {
+      await ctx.reply('Error al activar modo vacaciones.');
+    }
+  });
+
+  bot.command('inactivos', async (ctx: Context) => {
+    const clan = await prisma.clan.findFirst({
+      where: { idChatTelegram: ctx.chat!.id },
+    });
+    if (!clan) {
+      await ctx.reply('Este grupo no está vinculado a ningún clan.');
+      return;
+    }
+    try {
+      const results = await checkInactivity(clan.tag, null);
+      if (results.length === 0) {
+        await ctx.reply('✅ No hay miembros inactivos.');
+        return;
+      }
+      const lines = results.map((p) =>
+        `• ${p.nombreJugador} — ${p.diasInactivo} días (${p.status})`,
+      );
+      await ctx.reply(`⚠️ Miembros inactivos:\n\n${lines.join('\n')}`);
+    } catch {
+      await ctx.reply('Error al verificar inactividad.');
+    }
+  });
+
+  bot.command('guia', async (ctx: Context) => {
+    await ctx.reply(
+      '📋 *Guía del Bot*\n\n' +
+      '1️⃣ Registrate con /registrar #TAG\n' +
+      '2️⃣ Vinculá tu cuenta de Clash Royale\n' +
+      '3️⃣ Usá los comandos disponibles\n\n' +
+      'Comandos: /clan, /perfil, /ranking, /guerra, /puntos, /ausencia, /inactivos, /ayuda',
+      { parse_mode: 'Markdown' },
+    );
   });
 }
