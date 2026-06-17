@@ -3,6 +3,7 @@ import { getClanInfo } from '../api/clan';
 import { getPlayerInfo } from '../api/player';
 import { isValidPlayerTag, formatPlayerTag } from '../utils/validators';
 import { getLeaderboard } from '../services/points.service';
+import { getWeeklyTrophyRanking, getMonthlyTrophyRanking, getDonationRanking, getWarRanking } from '../services/ranking.service';
 import prisma from '../database/prisma';
 import { checkTelegramMember } from './middleware';
 import logger from '../config/logger';
@@ -106,19 +107,60 @@ export function registrarComandos(bot: Bot): void {
       await ctx.reply('Este grupo no está vinculado a ningún clan.');
       return;
     }
+    const args = (typeof ctx.match === 'string' ? ctx.match : '').trim().split(/\s+/);
+    const tipo = args[0] || 'puntos';
+    const periodo = args[1] || 'mensual';
     try {
-      const leaderboard = await getLeaderboard(clan.tag, 'mensual');
-      if (leaderboard.length === 0) {
-        await ctx.reply('Sin datos de ranking todavía.');
-        return;
+      if (tipo === 'trofeos') {
+        const ranking = periodo === 'semanal'
+          ? await getWeeklyTrophyRanking(clan.tag)
+          : await getMonthlyTrophyRanking(clan.tag);
+        if (ranking.length === 0) {
+          await ctx.reply('Sin datos de ranking de trofeos.');
+          return;
+        }
+        const lines = ranking.map((p) => {
+          const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
+          const signo = p.delta >= 0 ? '+' : '';
+          return `${medal} ${p.name} — ${signo}${p.delta} 🏆`;
+        });
+        await ctx.reply(`🏆 Ranking de Trofeos (${periodo})\n\n${lines.join('\n')}`);
+      } else if (tipo === 'donaciones') {
+        const ranking = await getDonationRanking(clan.tag);
+        if (ranking.length === 0) {
+          await ctx.reply('Sin datos de donaciones.');
+          return;
+        }
+        const lines = ranking.map((p) => {
+          const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
+          return `${medal} ${p.name} — ${p.donations} donadas`;
+        });
+        await ctx.reply(`💎 Ranking de Donaciones\n\n${lines.join('\n')}`);
+      } else if (tipo === 'guerra') {
+        const ranking = await getWarRanking(clan.tag);
+        if (ranking.length === 0) {
+          await ctx.reply('Sin datos de guerra este mes.');
+          return;
+        }
+        const lines = ranking.map((p) => {
+          const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
+          return `${medal} ${p.name} — ${p.fame} fama`;
+        });
+        await ctx.reply(`⚔️ Ranking de Guerra (mensual)\n\n${lines.join('\n')}`);
+      } else {
+        const leaderboard = await getLeaderboard(clan.tag, periodo as 'semanal' | 'mensual' | 'general');
+        if (leaderboard.length === 0) {
+          await ctx.reply('Sin datos de ranking todavía.');
+          return;
+        }
+        const lines = leaderboard.map((p) => {
+          const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
+          return `${medal} ${p.name} — ${p.points} pts`;
+        });
+        await ctx.reply(`🏆 Ranking de Puntos (${periodo})\n\n${lines.join('\n')}`);
       }
-      const lines = leaderboard.map((p) => {
-        const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
-        return `${medal} ${p.name} — ${p.points} pts`;
-      });
-      await ctx.reply(`🏆 Ranking Mensual\n\n${lines.join('\n')}`);
     } catch {
-      await ctx.reply('Error al obtener ranking.');
+      await ctx.reply('Error al obtener ranking. Uso: /ranking <tipo> <periodo>');
     }
   });
 

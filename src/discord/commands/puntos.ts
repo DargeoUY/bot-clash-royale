@@ -2,6 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from '
 import { BotCommand } from '../../types';
 import { getGuildClanTag } from '../../utils/guild';
 import { getPlayerPoints, getPointHistory, addPoints, getLeaderboard } from '../../services/points.service';
+import { getWeeklyTrophyRanking, getMonthlyTrophyRanking, getDonationRanking, getWarRanking } from '../../services/ranking.service';
 import { isValidPlayerTag, formatPlayerTag } from '../../utils/validators';
 import { errorEmbed, successEmbed, EMBED_COLOR } from '../../utils/embeds';
 
@@ -114,24 +115,79 @@ async function ejecutarHistorial(interaction: ChatInputCommandInteraction): Prom
 async function ejecutarRanking(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply();
 
-  const periodo = (interaction.options.getString('periodo') || 'mensual') as 'semanal' | 'mensual' | 'general';
+  const tipo = interaction.options.getString('tipo') || 'puntos';
+  const periodo = interaction.options.getString('periodo') || 'mensual';
   const clanTag = await getGuildClanTag(interaction.guildId!);
-  const leaderboard = await getLeaderboard(clanTag, periodo);
 
-  const embed = new EmbedBuilder()
-    .setTitle(`🏆 Ranking ${periodo === 'semanal' ? 'Semanal' : periodo === 'mensual' ? 'Mensual' : 'General'}`)
-    .setColor(EMBED_COLOR)
-    .setTimestamp();
+  let embed: EmbedBuilder;
 
-  if (leaderboard.length === 0) {
-    embed.setDescription('Sin datos todavía.');
+  if (tipo === 'trofeos') {
+    const ranking = periodo === 'semanal'
+      ? await getWeeklyTrophyRanking(clanTag)
+      : await getMonthlyTrophyRanking(clanTag);
+    embed = new EmbedBuilder()
+      .setTitle(`🏆 Ranking de Trofeos (${periodo === 'semanal' ? 'Semanal' : 'Mensual'})`)
+      .setColor(EMBED_COLOR)
+      .setTimestamp();
+    if (ranking.length === 0) {
+      embed.setDescription('Sin datos todavía.');
+    } else {
+      embed.setDescription(
+        ranking.map((p) => {
+          const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
+          const signo = p.delta >= 0 ? '+' : '';
+          return `${medal} **${p.name}** — ${signo}${p.delta} 🏆`;
+        }).join('\n'),
+      );
+    }
+  } else if (tipo === 'donaciones') {
+    const ranking = await getDonationRanking(clanTag);
+    embed = new EmbedBuilder()
+      .setTitle('💎 Ranking de Donaciones')
+      .setColor(EMBED_COLOR)
+      .setTimestamp();
+    if (ranking.length === 0) {
+      embed.setDescription('Sin datos todavía.');
+    } else {
+      embed.setDescription(
+        ranking.map((p) => {
+          const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
+          return `${medal} **${p.name}** — ${p.donations} donadas`;
+        }).join('\n'),
+      );
+    }
+  } else if (tipo === 'guerra') {
+    const ranking = await getWarRanking(clanTag);
+    embed = new EmbedBuilder()
+      .setTitle('⚔️ Ranking de Guerra (fama mensual)')
+      .setColor(EMBED_COLOR)
+      .setTimestamp();
+    if (ranking.length === 0) {
+      embed.setDescription('Sin datos de guerra este mes.');
+    } else {
+      embed.setDescription(
+        ranking.map((p) => {
+          const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
+          return `${medal} **${p.name}** — ${p.fame} fama`;
+        }).join('\n'),
+      );
+    }
   } else {
-    embed.setDescription(
-      leaderboard.map((p) => {
-        const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
-        return `${medal} **${p.name}** — ${p.points} pts`;
-      }).join('\n'),
-    );
+    const leaderboard = await getLeaderboard(clanTag, periodo as 'semanal' | 'mensual' | 'general');
+    embed = new EmbedBuilder()
+      .setTitle(`🏆 Ranking de Puntos (${periodo === 'semanal' ? 'Semanal' : periodo === 'mensual' ? 'Mensual' : 'General'})`)
+      .setColor(EMBED_COLOR)
+      .setTimestamp();
+    if (leaderboard.length === 0) {
+      embed.setDescription('Sin datos todavía.');
+    } else {
+      embed.setDescription(
+        leaderboard.map((p) => {
+          const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
+          return `${medal} **${p.name}** — ${p.points} pts`;
+        }).join('\n'),
+      );
+    }
   }
 
   await interaction.editReply({ embeds: [embed] });
@@ -183,16 +239,27 @@ export const puntos: BotCommand = {
 export const ranking: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('ranking')
-    .setDescription('Top jugadores del clan')
+    .setDescription('Ver rankings del clan')
+    .addStringOption((opt) =>
+      opt
+        .setName('tipo')
+        .setDescription('Tipo de ranking')
+        .setRequired(false)
+        .addChoices(
+          { name: 'Trofeos', value: 'trofeos' },
+          { name: 'Donaciones', value: 'donaciones' },
+          { name: 'Guerra', value: 'guerra' },
+          { name: 'Puntos', value: 'puntos' },
+        ),
+    )
     .addStringOption((opt) =>
       opt
         .setName('periodo')
-        .setDescription('Período')
+        .setDescription('Período (solo trofeos/puntos)')
         .setRequired(false)
         .addChoices(
           { name: 'Semanal', value: 'semanal' },
           { name: 'Mensual', value: 'mensual' },
-          { name: 'General', value: 'general' },
         ),
     ),
   execute: ejecutarRanking,
