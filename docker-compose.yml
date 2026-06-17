@@ -1,12 +1,36 @@
 services:
+  db:
+    image: mariadb:10.6
+    container_name: basededatos-mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: RootClash2024
+      MARIADB_DATABASE: clashbot
+    ports:
+      - "3307:3306"
+    command: --skip-ssl
+    restart: always
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: RootClash2024
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    restart: always
+
   bot:
     build: .
+    container_name: bot_clash_royale
     env_file: .env
     restart: unless-stopped
     ports:
-      - '3000:3000'
+      - "3000:3000"
     volumes:
       - ./logs:/app/logs
       - ./backups:/app/backups
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
+    depends_on:
+      - db
