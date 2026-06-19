@@ -59,7 +59,7 @@ dashboardRouter.get('/dashboard/data', async (req: Request, res: Response) => {
   try {
     const rankings = await fetchAllRankings(session.clanTag);
     res.json(rankings);
-  } catch { res.status(500).json({ error: 'Error' }); }
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
 function tabBtn(id: string, label: string, icon: string, active?: boolean) {
