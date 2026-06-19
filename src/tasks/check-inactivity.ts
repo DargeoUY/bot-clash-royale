@@ -1,41 +1,14 @@
 import cron from 'node-cron';
 import { Client } from 'discord.js';
 import { checkInactivity } from '../services/inactivity.service';
-import { notifyInactivePlayer, notifyInactivityChannel, notifyDailyInactivitySummary } from '../services/notification.service';
+import { notifyDailyInactivitySummary } from '../services/notification.service';
 import { processExpiredVacations } from '../services/vacation.service';
 import { getAllClanConfigs } from '../utils/guild';
 import logger from '../config/logger';
 
-let checkTask: cron.ScheduledTask | null = null;
 let dailyTask: cron.ScheduledTask | null = null;
 
-export async function runInactivityCheck(client: Client): Promise<void> {
-  logger.debug('Running inactivity check for all clans...');
-  try {
-    await processExpiredVacations();
-
-    const clans = await getAllClanConfigs();
-    for (const { clanTag, guildId } of clans) {
-      try {
-        const results = await checkInactivity(clanTag, guildId);
-        for (const player of results) {
-          await notifyInactivePlayer(client, player);
-        }
-        await notifyInactivityChannel(client, guildId, results);
-      } catch (err) {
-        logger.error(`Inactivity check failed for ${clanTag}:`, err);
-      }
-    }
-
-    logger.info('Inactivity check done');
-  } catch (error) {
-    logger.error('Inactivity check failed:', error);
-  }
-}
-
 export function startInactivityCheck(client: Client): void {
-  checkTask = cron.schedule('0 */6 * * *', () => runInactivityCheck(client));
-
   dailyTask = cron.schedule('0 8 * * *', async () => {
     logger.info('Running daily inactivity report...');
     try {
@@ -52,12 +25,11 @@ export function startInactivityCheck(client: Client): void {
     } catch (error) {
       logger.error('Daily inactivity report failed:', error);
     }
-  });
+  }, { timezone: 'America/Montevideo' });
 
-  logger.info('Inactivity check started (every 6h + daily report at 8:00)');
+  logger.info('Daily inactivity report scheduled at 8:00 AM (UTC-3)');
 }
 
 export function stopInactivityCheck(): void {
-  if (checkTask) checkTask.stop();
   if (dailyTask) dailyTask.stop();
 }

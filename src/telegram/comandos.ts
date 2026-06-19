@@ -40,17 +40,17 @@ export function registrarComandos(bot: Bot): void {
       }
       await prisma.jugador.upsert({
         where: { tag: playerTag },
-        update: { idTelegram: userId, name: player.name, trophies: player.trophies, registrado: true },
+        update: { idTelegram: userId, nombre: player.name, trofeos: player.trophies, registrado: true },
         create: {
-          tag: playerTag, name: player.name, trophies: player.trophies,
+          tag: playerTag, nombre: player.name, trofeos: player.trophies,
           clanTag: clan.tag, idTelegram: userId, registrado: true,
         },
       });
       await ctx.reply(
         `✅ Registro exitoso\n\n` +
-        `Jugador: ${player.name}\n` +
+        `Jugador: ${player.nombre}\n` +
         `Tag: ${playerTag}\n` +
-        `Trofeos: ${player.trophies}\n\n` +
+        `Trofeos: ${player.trofeos}\n\n` +
         `Ya podés usar todos los comandos.`,
       );
     } catch {
@@ -92,10 +92,10 @@ export function registrarComandos(bot: Bot): void {
         return;
       }
       await ctx.reply(
-        `🏆 ${player.name}\n` +
+        `🏆 ${player.nombre}\n` +
         `Tag: ${player.tag}\n` +
-        `Trofeos: ${player.trophies || 0}\n` +
-        `Rol: ${player.role || 'miembro'}\n` +
+        `Trofeos: ${player.trofeos || 0}\n` +
+        `Rol: ${player.rol || 'miembro'}\n` +
         `Registrado: ✅`,
       );
       return;
@@ -138,7 +138,7 @@ export function registrarComandos(bot: Bot): void {
         const lines = ranking.map((p) => {
           const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
           const signo = p.delta >= 0 ? '+' : '';
-          return `${medal} ${p.name} — ${signo}${p.delta} 🏆`;
+          return `${medal} ${p.nombre} — ${signo}${p.delta} 🏆`;
         });
         await ctx.reply(`🏆 Ranking de Trofeos (${periodo})\n\n${lines.join('\n')}`);
       } else if (tipo === 'donaciones') {
@@ -149,7 +149,7 @@ export function registrarComandos(bot: Bot): void {
         }
         const lines = ranking.map((p) => {
           const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
-          return `${medal} ${p.name} — ${p.donations} donadas`;
+          return `${medal} ${p.nombre} — ${p.donations} donadas`;
         });
         await ctx.reply(`💎 Ranking de Donaciones\n\n${lines.join('\n')}`);
       } else if (tipo === 'guerra') {
@@ -160,7 +160,7 @@ export function registrarComandos(bot: Bot): void {
         }
         const lines = ranking.map((p) => {
           const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
-          return `${medal} ${p.name} — ${p.fame} fama`;
+          return `${medal} ${p.nombre} — ${p.fame} fama`;
         });
         await ctx.reply(`⚔️ Ranking de Guerra (mensual)\n\n${lines.join('\n')}`);
       } else {
@@ -171,7 +171,7 @@ export function registrarComandos(bot: Bot): void {
         }
         const lines = leaderboard.map((p) => {
           const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
-          return `${medal} ${p.name} — ${p.points} pts`;
+          return `${medal} ${p.nombre} — ${p.points} pts`;
         });
         await ctx.reply(`🏆 Ranking de Puntos (${periodo})\n\n${lines.join('\n')}`);
       }

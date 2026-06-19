@@ -28,21 +28,21 @@ model Clan {
 model Jugador {
   id             Int       @id @default(autoincrement())
   tag            String    @unique
-  name           String    @map("nombre")
-  role           String?   @map("rol")
-  expLevel       Int?      @map("nivel_experiencia")
-  trophies       Int?      @map("trofeos")
+  nombre         String
+  rol            String?
+  nivel          Int?
+  trofeos        Int?
   clanTag        String?
   idDiscord      String?
   idTelegram     String?
   registrado     Boolean   @default(false)
-  status         String    @default("active") @map("estado")
+  estado         String    @default("active")
   ultimaActividad DateTime?
   salioEn        DateTime?
   trofeosInicioSemana Int?
   trofeosInicioMes    Int?
-  createdAt       DateTime  @default(now()) @map("fecha_creacion")
-  updatedAt       DateTime  @updatedAt @map("fecha_actualizacion")
+  fechaCreacion   DateTime  @default(now())
+  fechaActualizacion DateTime @updatedAt
 
   clan               Clan?                  @relation(fields: [clanTag], references: [tag])
   participaciones    ParticipanteGuerra[]

@@ -2,7 +2,7 @@ import { Client, GatewayIntentBits, Events } from 'discord.js';
 import { config } from '../config';
 import logger from '../config/logger';
 import { startSyncTasks, stopSyncTasks } from '../tasks/sync-clan';
-import { startInactivityCheck, stopInactivityCheck, runInactivityCheck } from '../tasks/check-inactivity';
+import { startInactivityCheck, stopInactivityCheck } from '../tasks/check-inactivity';
 import { startReportTasks, stopReportTasks } from '../tasks/weekly-report';
 import { startMonthlyTasks, stopMonthlyTasks } from '../tasks/monthly-report';
 import { startRoleUpdater, stopRoleUpdater } from '../tasks/update-roles';
@@ -63,7 +63,6 @@ client.once(Events.ClientReady, async (readyClient) => {
 
   startSyncTasks();
   startInactivityCheck(client);
-  runInactivityCheck(client);
   startReportTasks(client);
   startMonthlyTasks(client);
   startRoleUpdater(client);

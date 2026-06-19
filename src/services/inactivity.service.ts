@@ -94,7 +94,7 @@ export async function checkInactivity(clanTag: string, _guildId: string | null):
 
     results.push({
       playerTag: player.tag,
-      nombreJugador: player.name,
+      nombreJugador: player.nombre,
       idDiscord: player.idDiscord,
       diasInactivo: daysInactive,
       status,

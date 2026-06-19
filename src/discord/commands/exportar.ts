@@ -18,9 +18,9 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
   if (formato === 'csv') {
     const rows = players.map((p) => ({
       tag: p.tag,
-      name: p.name,
-      role: p.role,
-      trophies: p.trophies,
+      name: p.nombre,
+      role: p.rol,
+      trophies: p.trofeos,
       discordId: p.idDiscord || '',
       isRegistered: p.registrado,
       totalPoints: p.puntos[0]?.puntosTotales || 0,
@@ -36,9 +36,9 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
   } else {
     const data = players.map((p) => ({
       tag: p.tag,
-      name: p.name,
-      role: p.role,
-      trophies: p.trophies,
+      name: p.nombre,
+      role: p.rol,
+      trophies: p.trofeos,
       discordId: p.idDiscord,
       isRegistered: p.registrado,
       totalPoints: p.puntos[0]?.puntosTotales || 0,

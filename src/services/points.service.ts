@@ -86,7 +86,7 @@ export async function getPointHistory(playerTag: string): Promise<
 export async function getLeaderboard(
   clanTag: string,
   period: 'semanal' | 'mensual' | 'general',
-): Promise<{ tag: string; name: string; points: number; rank: number }[]> {
+): Promise<{ tag: string; nombre: string; points: number; rank: number }[]> {
   const season = getSeason();
 
   const points = await prisma.puntoJugador.findMany({
@@ -101,7 +101,7 @@ export async function getLeaderboard(
 
   return points.map((p, i) => ({
     tag: p.tagJugador,
-    name: p.jugador.name,
+    nombre: p.jugador.nombre,
     points: p.puntosTotales,
     rank: i + 1,
   }));

@@ -52,14 +52,14 @@ async function publishMonthlyReport(client: Client): Promise<void> {
       for (let i = 0; i < Math.min(leaderboard.length, 10); i++) {
         const p = leaderboard[i];
         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-        description += `${medal} **${p.name}** — ${p.points} pts\n`;
+        description += `${medal} **${p.nombre}** — ${p.points} pts\n`;
       }
       embed.setDescription(description);
 
       if (leaderboard[0]) {
         embed.addFields({
           name: '👑 Campeón del Mes',
-          value: `**${leaderboard[0].name}** con ${leaderboard[0].points} puntos`,
+          value: `**${leaderboard[0].nombre}** con ${leaderboard[0].points} puntos`,
         });
       }
     } else {
@@ -97,7 +97,7 @@ async function resetSeasonRoles(client: Client): Promise<void> {
     if (winnerDiscordId) {
       const member = await guild.members.fetch(winnerDiscordId);
       await member.roles.add(role);
-      logger.info(`Campeón del Mes: ${leaderboard[0].name}`);
+      logger.info(`Campeón del Mes: ${leaderboard[0].nombre}`);
     }
   } catch (error) {
     logger.error('Error assigning Campeón del Mes role:', error);

@@ -64,7 +64,7 @@ async function executeSemanal(interaction: ChatInputCommandInteraction): Promise
   } else {
     const topList = leaderboard.map((p, i) => {
       const medals = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-      return `${medals} **${p.name}** — ${p.points} pts`;
+      return `${medals} **${p.nombre}** — ${p.points} pts`;
     }).join('\n');
     embed.setDescription(topList);
   }
@@ -88,7 +88,7 @@ async function executeMensual(interaction: ChatInputCommandInteraction): Promise
   } else {
     const topList = leaderboard.map((p, i) => {
       const medals = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-      return `${medals} **${p.name}** — ${p.points} pts`;
+      return `${medals} **${p.nombre}** — ${p.points} pts`;
     }).join('\n');
     embed.setDescription(topList);
   }

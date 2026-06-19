@@ -20,7 +20,7 @@ export async function detectMemberChanges(
   });
 
   const existingTags = new Map(
-    existingPlayers.map((p) => [p.tag, { status: p.status, name: p.name }]),
+    existingPlayers.map((p) => [p.tag, { estado: p.estado, nombre: p.nombre }]),
   );
 
   const joined: MemberChanges['joined'] = [];
@@ -32,15 +32,15 @@ export async function detectMemberChanges(
     const existing = existingTags.get(member.tag);
     if (!existing) {
       joined.push({ tag: member.tag, name: member.name, role: member.role });
-    } else if (existing.status === 'left') {
+    } else if (existing.estado === 'left') {
       rejoined.push({ tag: member.tag, name: member.name });
     }
   }
 
   // Detect left members (in DB but not in current clan)
   for (const [tag, info] of existingTags) {
-    if (!currentTags.has(tag) && info.status === 'active') {
-      left.push({ tag, name: info.name, role: 'unknown' });
+    if (!currentTags.has(tag) && info.estado === 'active') {
+      left.push({ tag, name: info.nombre, role: 'unknown' });
     }
   }
 
@@ -48,7 +48,7 @@ export async function detectMemberChanges(
   for (const p of left) {
     await prisma.jugador.update({
       where: { tag: p.tag },
-      data: { status: 'left', salioEn: new Date(), clanTag: null },
+      data: { estado: 'left', salioEn: new Date(), clanTag: null },
     });
     await prisma.historialClan.create({
       data: { tagJugador: p.tag, clanTag, evento: 'left', nombreJugador: p.name },
@@ -58,7 +58,7 @@ export async function detectMemberChanges(
   for (const p of rejoined) {
     await prisma.jugador.update({
       where: { tag: p.tag },
-      data: { status: 'active', salioEn: null, clanTag },
+      data: { estado: 'active', salioEn: null, clanTag },
     });
     await prisma.historialClan.create({
       data: { tagJugador: p.tag, clanTag, evento: 'joined', nombreJugador: p.name },

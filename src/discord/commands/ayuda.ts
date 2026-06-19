@@ -47,6 +47,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
         name: '🔗 Enlaces / Información',
         value: [
           '`/guia` — Guía completa en canal dedicado',
+          '`/web` — Link al panel web de administración',
         ].join('\n'),
       },
       {

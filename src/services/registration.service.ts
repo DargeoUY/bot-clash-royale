@@ -8,9 +8,9 @@ export interface RegistrationResult {
   success: boolean;
   player?: {
     tag: string;
-    name: string;
-    trophies: number;
-    role: string;
+    nombre: string;
+    trofeos: number;
+    rol: string;
   };
   error?: string;
 }
@@ -45,25 +45,25 @@ export async function registerPlayer(
     const player = await prisma.jugador.upsert({
       where: { tag: playerTag },
       update: {
-        name: playerInfo.name,
+        nombre: playerInfo.name,
         idDiscord: discordId,
         registrado: true,
-        expLevel: playerInfo.expLevel,
-        trophies: playerInfo.trophies,
+        nivel: playerInfo.expLevel,
+        trofeos: playerInfo.trophies,
         clanTag: playerInfo.clan.tag,
       },
       create: {
         tag: playerTag,
-        name: playerInfo.name,
+        nombre: playerInfo.name,
         idDiscord: discordId,
         registrado: true,
-        expLevel: playerInfo.expLevel,
-        trophies: playerInfo.trophies,
+        nivel: playerInfo.expLevel,
+        trofeos: playerInfo.trophies,
         clanTag: playerInfo.clan.tag,
       },
     });
 
-    logger.info(`Player registered: ${player.name} (${player.tag}) -> Discord ${discordId}`);
+    logger.info(`Player registered: ${player.nombre} (${player.tag}) -> Discord ${discordId}`);
 
     if (guild) {
       try {
@@ -75,7 +75,7 @@ export async function registerPlayer(
             const role = guild.roles.cache.get(cfg.valor);
             if (role && !member.roles.cache.has(role.id)) {
               await member.roles.add(role);
-              logger.info(`Rol Recluta asignado a ${player.name}`);
+              logger.info(`Rol Recluta asignado a ${player.nombre}`);
             }
           }
         }
@@ -88,9 +88,9 @@ export async function registerPlayer(
       success: true,
       player: {
         tag: player.tag,
-        name: player.name,
-        trophies: player.trophies || 0,
-        role: player.role || 'miembro',
+        nombre: player.nombre,
+        trofeos: player.trofeos || 0,
+        rol: player.rol || 'miembro',
       },
     };
   } catch (error) {

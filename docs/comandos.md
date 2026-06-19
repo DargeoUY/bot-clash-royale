@@ -306,7 +306,24 @@ Modelos Prisma utilizados por los comandos:
 
 ---
 
-## 15. `/exportar [formato]`
+## 15. `/web`
+
+Link al panel web de administración del clan.
+
+**Flujo:**
+1. El usuario ejecuta `/web`
+2. El bot responde con un embed que contiene el enlace al panel (`http://13.140.185.223:3000`)
+3. El usuario hace clic en el enlace
+4. Inicia sesión con Discord OAuth (solo líderes/co-líderes del clan)
+5. Accede al dashboard con estadísticas, rankings y miembros
+
+**DB:** No consulta base de datos.
+
+**Visibilidad:** Público (no requiere registro).
+
+---
+
+## 16. `/exportar [formato]`
 
 **Propósito:** Exportar datos del clan a CSV o JSON.
 
@@ -546,9 +563,15 @@ Lista completa de comandos con descripciones.
 - Si no → muestra login con botón "Iniciar sesión con Discord"
 
 ## `/dashboard` (GET)
-1. Obtiene datos del clan desde API de CR (nombre, badge, stats)
-2. Obtiene leaderboard mensual de puntos
-3. Obtiene lista de miembros con sus conexiones (Discord/Telegram)
-4. Renderiza HTML con estadísticas, ranking y tabla de miembros
 
-**DB:** Lee `PuntoJugador` (leaderboard), `Jugador` (lista de miembros)
+1. Obtiene datos del clan desde API de CR (nombre, badge, stats)
+2. Obtiene rankings: puntos, trofeos semanal/mensual, donaciones, guerra
+3. Obtiene lista de miembros con sus conexiones (Discord/Telegram)
+4. Renderiza HTML con estadísticas, tabs de rankings y tabla de miembros
+5. Auto-refresh cada 30s vía `/dashboard/data` (JSON)
+
+**DB:** Lee `PuntoJugador`, `Jugador`, `ParticipanteGuerra`, `RegistroGuerra`, `RegistroDonacion`
+
+## `/dashboard/data` (GET)
+
+Endpoint JSON para auto-refresh. Retorna todos los rankings en formato `{ puntos, trofeosSemanal, trofeosMensual, donaciones, guerra }`.

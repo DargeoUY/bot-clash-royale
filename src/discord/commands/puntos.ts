@@ -136,7 +136,7 @@ async function ejecutarRanking(interaction: ChatInputCommandInteraction): Promis
         ranking.map((p) => {
           const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
           const signo = p.delta >= 0 ? '+' : '';
-          return `${medal} **${p.name}** — ${signo}${p.delta} 🏆`;
+          return `${medal} **${p.nombre}** — ${signo}${p.delta} 🏆`;
         }).join('\n'),
       );
     }
@@ -152,7 +152,7 @@ async function ejecutarRanking(interaction: ChatInputCommandInteraction): Promis
       embed.setDescription(
         ranking.map((p) => {
           const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
-          return `${medal} **${p.name}** — ${p.donations} donadas`;
+          return `${medal} **${p.nombre}** — ${p.donations} donadas`;
         }).join('\n'),
       );
     }
@@ -168,7 +168,7 @@ async function ejecutarRanking(interaction: ChatInputCommandInteraction): Promis
       embed.setDescription(
         ranking.map((p) => {
           const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
-          return `${medal} **${p.name}** — ${p.fame} fama`;
+          return `${medal} **${p.nombre}** — ${p.fame} fama`;
         }).join('\n'),
       );
     }
@@ -184,7 +184,7 @@ async function ejecutarRanking(interaction: ChatInputCommandInteraction): Promis
       embed.setDescription(
         leaderboard.map((p) => {
           const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
-          return `${medal} **${p.name}** — ${p.points} pts`;
+          return `${medal} **${p.nombre}** — ${p.points} pts`;
         }).join('\n'),
       );
     }

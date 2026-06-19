@@ -21,14 +21,14 @@ function getMonthRange(): { start: Date; end: Date } {
   return { start, end };
 }
 
-export async function getWeeklyTrophyRanking(clanTag: string): Promise<{ tag: string; name: string; delta: number; trophies: number; rank: number }[]> {
+export async function getWeeklyTrophyRanking(clanTag: string): Promise<{ tag: string; nombre: string; delta: number; trofeos: number; rank: number }[]> {
   const players = await prisma.jugador.findMany({
-    where: { clanTag, status: 'active' },
+    where: { clanTag, estado: 'active' },
   });
   const withDelta = players.map((p) => {
-    const base = p.trofeosInicioSemana ?? p.trophies ?? 0;
-    const current = p.trophies ?? 0;
-    return { tag: p.tag, name: p.name, delta: current - base, trophies: current };
+    const base = p.trofeosInicioSemana ?? p.trofeos ?? 0;
+    const current = p.trofeos ?? 0;
+    return { tag: p.tag, nombre: p.nombre, delta: current - base, trofeos: current };
   });
   return withDelta
     .sort((a, b) => b.delta - a.delta)
@@ -36,14 +36,14 @@ export async function getWeeklyTrophyRanking(clanTag: string): Promise<{ tag: st
     .map((p, i) => ({ ...p, rank: i + 1 }));
 }
 
-export async function getMonthlyTrophyRanking(clanTag: string): Promise<{ tag: string; name: string; delta: number; trophies: number; rank: number }[]> {
+export async function getMonthlyTrophyRanking(clanTag: string): Promise<{ tag: string; nombre: string; delta: number; trofeos: number; rank: number }[]> {
   const players = await prisma.jugador.findMany({
-    where: { clanTag, status: 'active' },
+    where: { clanTag, estado: 'active' },
   });
   const withDelta = players.map((p) => {
-    const base = p.trofeosInicioMes ?? p.trophies ?? 0;
-    const current = p.trophies ?? 0;
-    return { tag: p.tag, name: p.name, delta: current - base, trophies: current };
+    const base = p.trofeosInicioMes ?? p.trofeos ?? 0;
+    const current = p.trofeos ?? 0;
+    return { tag: p.tag, nombre: p.nombre, delta: current - base, trofeos: current };
   });
   return withDelta
     .sort((a, b) => b.delta - a.delta)
@@ -51,9 +51,9 @@ export async function getMonthlyTrophyRanking(clanTag: string): Promise<{ tag: s
     .map((p, i) => ({ ...p, rank: i + 1 }));
 }
 
-export async function getDonationRanking(clanTag: string): Promise<{ tag: string; name: string; donations: number; rank: number }[]> {
+export async function getDonationRanking(clanTag: string): Promise<{ tag: string; nombre: string; donations: number; rank: number }[]> {
   const players = await prisma.jugador.findMany({
-    where: { clanTag, status: 'active' },
+    where: { clanTag, estado: 'active' },
     include: {
       donaciones: {
         orderBy: { season: 'desc' },
@@ -62,13 +62,13 @@ export async function getDonationRanking(clanTag: string): Promise<{ tag: string
     },
   });
   const sorted = players
-    .map((p) => ({ tag: p.tag, name: p.name, donations: p.donaciones[0]?.donations || 0 }))
+    .map((p) => ({ tag: p.tag, nombre: p.nombre, donations: p.donaciones[0]?.donations || 0 }))
     .sort((a, b) => b.donations - a.donations)
     .slice(0, 10);
   return sorted.map((p, i) => ({ ...p, rank: i + 1 }));
 }
 
-export async function getWarRanking(clanTag: string): Promise<{ tag: string; name: string; fame: number; rank: number }[]> {
+export async function getWarRanking(clanTag: string): Promise<{ tag: string; nombre: string; fame: number; rank: number }[]> {
   const month = getMonthRange();
   const participants = await prisma.participanteGuerra.findMany({
     where: {
@@ -81,12 +81,12 @@ export async function getWarRanking(clanTag: string): Promise<{ tag: string; nam
   });
   const fameMap = new Map<string, { name: string; fame: number }>();
   for (const p of participants) {
-    const current = fameMap.get(p.tagJugador) || { name: p.jugador.name, fame: 0 };
+    const current = fameMap.get(p.tagJugador) || { nombre: p.jugador.nombre, fame: 0 };
     current.fame += p.fame || 0;
     fameMap.set(p.tagJugador, current);
   }
   const sorted = Array.from(fameMap.entries())
-    .map(([tag, data]) => ({ tag, name: data.name, fame: data.fame }))
+    .map(([tag, data]) => ({ tag, nombre: data.nombre, fame: data.fame }))
     .sort((a, b) => b.fame - a.fame)
     .slice(0, 10);
   return sorted.map((p, i) => ({ ...p, rank: i + 1 }));
@@ -112,7 +112,7 @@ export async function generateWeeklyReport(clanTag: string): Promise<string> {
   const lines = ranking.map((p) => {
     const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `${p.rank}.`;
     const signo = p.delta >= 0 ? '+' : '';
-    return `${medal} **${p.name}** — ${signo}${p.delta} 🏆`;
+    return `${medal} **${p.nombre}** — ${signo}${p.delta} 🏆`;
   });
   return `📅 *Ranking Semanal de Copas*\n\n${lines.join('\n')}`;
 }
@@ -123,10 +123,10 @@ export async function generateMonthlyReport(clanTag: string): Promise<string> {
   const guerra = await getWarRanking(clanTag);
   let msg = '📅 *Ranking Mensual*\n\n';
   msg += '🏆 *Trofeos:*\n';
-  msg += trofeos.slice(0, 5).map((p) => `${p.rank}. ${p.name} — ${p.delta >= 0 ? '+' : ''}${p.delta}`).join('\n') + '\n\n';
+  msg += trofeos.slice(0, 5).map((p) => `${p.rank}. ${p.nombre} — ${p.delta >= 0 ? '+' : ''}${p.delta}`).join('\n') + '\n\n';
   msg += '💎 *Donaciones:*\n';
-  msg += donaciones.slice(0, 5).map((p) => `${p.rank}. ${p.name} — ${p.donations}`).join('\n') + '\n\n';
+  msg += donaciones.slice(0, 5).map((p) => `${p.rank}. ${p.nombre} — ${p.donations}`).join('\n') + '\n\n';
   msg += '⚔️ *Guerra:*\n';
-  msg += guerra.slice(0, 5).map((p) => `${p.rank}. ${p.name} — ${p.fame} fama`).join('\n');
+  msg += guerra.slice(0, 5).map((p) => `${p.rank}. ${p.nombre} — ${p.fame} fama`).join('\n');
   return msg;
 }

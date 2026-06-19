@@ -45,14 +45,14 @@ async function publishWeeklyReport(client: Client): Promise<void> {
       for (let i = 0; i < Math.min(leaderboard.length, 10); i++) {
         const p = leaderboard[i];
         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-        description += `${medal} **${p.name}** — ${p.points} pts\n`;
+        description += `${medal} **${p.nombre}** — ${p.points} pts\n`;
       }
       embed.setDescription(description);
 
       if (leaderboard[0]) {
         embed.addFields({
           name: '🏆 MVP de la Semana',
-          value: `**${leaderboard[0].name}** con ${leaderboard[0].points} puntos`,
+          value: `**${leaderboard[0].nombre}** con ${leaderboard[0].points} puntos`,
         });
       }
     } else {

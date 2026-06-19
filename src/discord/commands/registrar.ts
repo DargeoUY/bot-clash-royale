@@ -34,10 +34,10 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
     .setDescription(`¡Tu cuenta de Clash Royale fue vinculada correctamente!`)
     .setColor(EMBED_COLOR)
     .addFields(
-      { name: 'Jugador', value: `${result.player!.name}`, inline: true },
+      { name: 'Jugador', value: `${result.player!.nombre}`, inline: true },
       { name: 'Tag', value: result.player!.tag, inline: true },
-      { name: 'Trofeos', value: `${result.player!.trophies}`, inline: true },
-      { name: 'Rol en el clan', value: result.player!.role, inline: true },
+      { name: 'Trofeos', value: `${result.player!.trofeos}`, inline: true },
+      { name: 'Rol en el clan', value: result.player!.rol, inline: true },
     )
     .setFooter({ text: 'Usá /perfil para ver tus stats completos' })
     .setTimestamp();

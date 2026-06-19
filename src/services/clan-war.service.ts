@@ -54,28 +54,34 @@ export async function syncClanData(
       await prisma.jugador.upsert({
         where: { tag: member.tag },
         update: {
-          name: member.name,
-          role: member.role,
-          expLevel: member.expLevel,
-          trophies: member.trophies,
+          nombre: member.name,
+          rol: member.role,
+          nivel: member.expLevel,
+          trofeos: member.trophies,
           clanTag,
-          status: 'active',
+          estado: 'active',
           ...(lastSeen ? { ultimaActividad: lastSeen } : {}),
         },
         create: {
           tag: member.tag,
-          name: member.name,
-          role: member.role,
-          expLevel: member.expLevel,
-          trophies: member.trophies,
+          nombre: member.name,
+          rol: member.role,
+          nivel: member.expLevel,
+          trofeos: member.trophies,
           trofeosInicioSemana: member.trophies,
           trofeosInicioMes: member.trophies,
           clanTag,
-          status: 'active',
+          estado: 'active',
           ...(lastSeen ? { ultimaActividad: lastSeen } : {}),
         },
       });
     }
+
+    // Fix null baselines para jugadores existentes que se crearon antes de tener estos campos
+    await prisma.$executeRawUnsafe(
+      `UPDATE Jugador SET trofeosInicioSemana = trofeos, trofeosInicioMes = trofeos WHERE clanTag = ? AND (trofeosInicioSemana IS NULL OR trofeosInicioMes IS NULL)`,
+      clanTag,
+    );
 
     logger.info(`Clan members synced: ${members.length} players`);
 
@@ -215,64 +221,67 @@ async function publishFirstSyncTest(client: Client, guildId: string): Promise<vo
 export async function syncCurrentWar(clanTag: string): Promise<void> {
   try {
     const race = await getCurrentRiverRace(clanTag);
+    if (!race.clan) return;
 
-    if (!race.clan || !race.periodLogs) return;
+    const seasonId = String(race.seasonId);
+    const participants = race.clan.participants || [];
 
-    const periodLog = race.periodLogs[0];
-    if (!periodLog) return;
-
-    const latestEntry = periodLog.items[0];
-    if (!latestEntry || !latestEntry.standings) return;
-
-    const existingWar = await prisma.registroGuerra.findFirst({
-      where: {
-        clanTag,
-        idTemporada: String(latestEntry.seasonId),
-        tipoGuerra: 'riverRace',
-      },
+    // Obtener o crear registro de guerra para la temporada activa
+    let warLog = await prisma.registroGuerra.findFirst({
+      where: { clanTag, idTemporada: seasonId, tipoGuerra: 'riverRace' },
     });
 
-    if (existingWar) return;
-
-    const clanStanding = latestEntry.standings.find(
-      (s) => s.clan.tag === clanTag,
-    );
-
-    const warLog = await prisma.registroGuerra.create({
-      data: {
-        clanTag,
-        idTemporada: String(latestEntry.seasonId),
-        tipoGuerra: 'riverRace',
-        startDate: new Date(race.periodLogs[0].periodIndex > 0 ? '' : new Date()),
-        endDate: new Date(),
-        participantes: clanStanding?.clan.participants.length,
-        fame: clanStanding?.clan.fame,
-      },
-    });
-
-    if (clanStanding) {
-      for (const participant of clanStanding.clan.participants) {
-        const existingParticipant = await prisma.participanteGuerra.findFirst({
-          where: { idRegistroGuerra: warLog.id, tagJugador: participant.tag },
-        });
-
-        if (!existingParticipant) {
-          await prisma.participanteGuerra.create({
-            data: {
-              idRegistroGuerra: warLog.id,
-              tagJugador: participant.tag,
-              fame: participant.fame,
-              puntosReparacion: participant.repairPoints,
-              barcosAtacados: participant.boatAttacks,
-              mazosUsados: participant.decksUsed,
-              mazosUsadosHoy: participant.decksUsedToday,
-            },
-          });
-        }
-      }
+    if (!warLog) {
+      warLog = await prisma.registroGuerra.create({
+        data: {
+          clanTag,
+          idTemporada: seasonId,
+          tipoGuerra: 'riverRace',
+          startDate: new Date(),
+          endDate: new Date(),
+          participantes: participants.length,
+          fame: race.clan.fame,
+        },
+      });
+    } else {
+      warLog = await prisma.registroGuerra.update({
+        where: { id: warLog.id },
+        data: {
+          fame: race.clan.fame,
+          participantes: participants.length,
+        },
+      });
     }
 
-    logger.info(`War synced: season ${latestEntry.seasonId}, ${clanStanding?.clan.participants.length || 0} participants`);
+    // UPSERT cada participante con datos actuales de race.clan.participants
+    for (const p of participants) {
+      await prisma.participanteGuerra.upsert({
+        where: {
+          idRegistroGuerra_tagJugador: {
+            idRegistroGuerra: warLog.id,
+            tagJugador: p.tag,
+          },
+        },
+        update: {
+          fame: p.fame,
+          puntosReparacion: p.repairPoints,
+          barcosAtacados: p.boatAttacks,
+          mazosUsados: p.decksUsed,
+          mazosUsadosHoy: p.decksUsedToday,
+        },
+        create: {
+          idRegistroGuerra: warLog.id,
+          tagJugador: p.tag,
+          fame: p.fame,
+          puntosReparacion: p.repairPoints,
+          barcosAtacados: p.boatAttacks,
+          mazosUsados: p.decksUsed,
+          mazosUsadosHoy: p.decksUsedToday,
+        },
+      });
+    }
+
+    logger.info(`War synced: season ${seasonId}, ${participants.length} participants`);
 
   } catch (error) {
     if (error instanceof CRApiError && error.status === 404) {
