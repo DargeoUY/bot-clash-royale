@@ -4,6 +4,7 @@ import { config } from '../config';
 import logger from '../config/logger';
 import { authRouter } from './auth';
 import { dashboardRouter } from './dashboard';
+import { loginRouter } from './login';
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.use(session({
 
 app.use(express.json());
 app.use('/auth', authRouter);
+app.use('/', loginRouter);
 app.use('/', dashboardRouter);
 
 app.get('/health', (_req, res) => {
