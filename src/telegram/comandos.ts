@@ -48,9 +48,9 @@ export function registrarComandos(bot: Bot): void {
       });
       await ctx.reply(
         `✅ Registro exitoso\n\n` +
-        `Jugador: ${player.nombre}\n` +
+        `Jugador: ${player.name}\n` +
         `Tag: ${playerTag}\n` +
-        `Trofeos: ${player.trofeos}\n\n` +
+        `Trofeos: ${player.trophies}\n\n` +
         `Ya podés usar todos los comandos.`,
       );
     } catch {

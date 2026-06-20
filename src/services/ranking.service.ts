@@ -79,7 +79,7 @@ export async function getWarRanking(clanTag: string): Promise<{ tag: string; nom
     },
     include: { jugador: true },
   });
-  const fameMap = new Map<string, { name: string; fame: number }>();
+  const fameMap = new Map<string, { nombre: string; fame: number }>();
   for (const p of participants) {
     const current = fameMap.get(p.tagJugador) || { nombre: p.jugador.nombre, fame: 0 };
     current.fame += p.fame || 0;

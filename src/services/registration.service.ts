@@ -80,7 +80,7 @@ export async function registerPlayer(
           }
         }
       } catch (err) {
-        logger.warn(`No se pudo asignar rol Recluta a ${player.name}: ${(err as Error).message}`);
+        logger.warn(`No se pudo asignar rol Recluta a ${player.nombre}: ${(err as Error).message}`);
       }
     }
 

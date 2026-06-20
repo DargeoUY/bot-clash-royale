@@ -62,7 +62,7 @@ export async function assignWeeklyChampion(guild: Guild, clanTag: string): Promi
     }
   }
   await member.roles.add(role);
-  logger.info(`Campeón semanal asignado: ${winner.name}`);
+  logger.info(`Campeón semanal asignado: ${winner.nombre}`);
 }
 
 export async function assignMonthlyChampion(guild: Guild, clanTag: string): Promise<void> {
@@ -79,7 +79,7 @@ export async function assignMonthlyChampion(guild: Guild, clanTag: string): Prom
     }
   }
   await member.roles.add(role);
-  logger.info(`Campeón mensual asignado: ${winner.name}`);
+  logger.info(`Campeón mensual asignado: ${winner.nombre}`);
 }
 
 export async function assignDonorRoles(guild: Guild, clanTag: string): Promise<void> {
