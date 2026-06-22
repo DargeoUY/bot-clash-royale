@@ -17,6 +17,10 @@ import { setDiscordClient } from '../services/cross-platform.service';
 import { startTelegramBot } from '../telegram';
 import { syncClanData, syncCurrentWar } from '../services/clan-war.service';
 import { getAllClanConfigs } from '../utils/guild';
+import { getInactivitySummary } from '../services/inactivity.service';
+import { notifyDailyInactivitySummary } from '../services/notification.service';
+import { generateWeeklyReport } from '../services/ranking.service';
+import { broadcastToGuild } from '../services/cross-platform.service';
 
 async function testApiConnection(): Promise<void> {
   const keyPreview = config.CR_API_KEY.substring(0, 20) + '...';
@@ -29,10 +33,7 @@ async function testApiConnection(): Promise<void> {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.error(`API FAILED -> ${config.CR_API_BASE_URL} | ${keyPreview} | ${msg}`);
-    logger.error('==========================================================');
-    logger.error('SOLUCION: Crear nueva API key en https://developer.clashroyale.com');
-    logger.error('Whitelistear la IP fija de tu VPS en la API key');
-    logger.error('==========================================================');
+    logger.error('Crear nueva API key en https://developer.clashroyale.com');
   }
 }
 
@@ -52,10 +53,22 @@ client.once(Events.ClientReady, async (readyClient) => {
   // Sincronización inmediata: alimenta la DB al iniciar
   try {
     const clans = await getAllClanConfigs();
-    for (const { clanTag } of clans) {
+    for (const { clanTag, guildId } of clans) {
       logger.info(`Sincronización inicial: ${clanTag}`);
       await syncClanData(clanTag, readyClient);
       await syncCurrentWar(clanTag);
+
+      // Publicar rankings e inactivos al iniciar
+      try {
+        const [weeklyReport, inactivity] = await Promise.all([
+          generateWeeklyReport(clanTag),
+          getInactivitySummary(clanTag),
+        ]);
+        await broadcastToGuild(guildId, weeklyReport);
+        await notifyDailyInactivitySummary(readyClient, guildId, inactivity.warning.concat(inactivity.inactive).concat(inactivity.kick_suggested));
+      } catch (pubErr) {
+        logger.error(`Error publicando datos al iniciar para ${clanTag}:`, pubErr);
+      }
     }
   } catch (err) {
     logger.error('Error en sincronización inicial:', err);

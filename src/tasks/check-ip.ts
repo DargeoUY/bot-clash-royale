@@ -1,5 +1,4 @@
 import cron from 'node-cron';
-import { client } from '../discord';
 import { checkAndUpdateIP } from '../services/ip-updater.service';
 import logger from '../config/logger';
 
@@ -13,20 +12,7 @@ export function startIPChecker(): void {
       const password = process.env.CR_DEV_PASSWORD;
       const keyId = process.env.CR_API_KEY_ID;
 
-      const result = await checkAndUpdateIP(email, password, keyId);
-
-      if (result.changed) {
-        const guild = client.guilds.cache.first();
-        if (guild) {
-          const owner = await guild.fetchOwner().catch(() => null);
-          if (owner) {
-            const msg = result.updated
-              ? `✅ IP actualizada automáticamente: **${result.newIP}**. La CR API key ya permite esta IP.`
-              : `⚠️ Tu IP pública cambió a **${result.newIP}**.\n\nAndá a https://developer.clashroyale.com y actualizá la key, o configurá las credenciales de developer con \`/config\`.`;
-            await owner.send(msg).catch(() => {});
-          }
-        }
-      }
+      await checkAndUpdateIP(email, password, keyId);
     } catch (error) {
       logger.error('IP check failed:', error);
     }
