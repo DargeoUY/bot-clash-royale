@@ -32,3 +32,13 @@ export function successEmbed(title: string, description: string): EmbedBuilder {
     .setColor(EMBED_SUCCESS_COLOR)
     .setTimestamp();
 }
+
+export function translateRole(role: string | null | undefined): string {
+  const map: Record<string, string> = {
+    leader: 'líder',
+    coLeader: 'co-líder',
+    elder: 'veterano',
+    member: 'miembro',
+  };
+  return map[role || ''] || 'miembro';
+}

@@ -3,7 +3,7 @@ import { BotCommand } from '../../types';
 import { getGuildClanTag } from '../../utils/guild';
 import { registerPlayer } from '../../services/registration.service';
 import { isValidPlayerTag, formatPlayerTag } from '../../utils/validators';
-import { errorEmbed, EMBED_COLOR } from '../../utils/embeds';
+import { errorEmbed, EMBED_COLOR, translateRole } from '../../utils/embeds';
 
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
@@ -37,7 +37,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
       { name: 'Jugador', value: `${result.player!.nombre}`, inline: true },
       { name: 'Tag', value: result.player!.tag, inline: true },
       { name: 'Trofeos', value: `${result.player!.trofeos}`, inline: true },
-      { name: 'Rol en el clan', value: result.player!.rol, inline: true },
+      { name: 'Rol en el clan', value: translateRole(result.player!.rol), inline: true },
     )
     .setFooter({ text: 'Usá /perfil para ver tus stats completos' })
     .setTimestamp();

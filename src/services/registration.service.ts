@@ -57,6 +57,7 @@ export async function registerPlayer(
         nivel: playerInfo.expLevel,
         trofeos: playerInfo.trophies,
         clanTag: playerInfo.clan.tag,
+        rol: playerInfo.role,
       },
       create: {
         tag: playerTag,
@@ -66,6 +67,7 @@ export async function registerPlayer(
         nivel: playerInfo.expLevel,
         trofeos: playerInfo.trophies,
         clanTag: playerInfo.clan.tag,
+        rol: playerInfo.role,
       },
     });
 
