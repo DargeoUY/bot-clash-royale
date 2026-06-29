@@ -42,6 +42,12 @@ export async function registerPlayer(
       };
     }
 
+    await prisma.clan.upsert({
+      where: { tag: playerInfo.clan.tag },
+      update: { name: playerInfo.clan.name },
+      create: { tag: playerInfo.clan.tag, name: playerInfo.clan.name },
+    });
+
     const player = await prisma.jugador.upsert({
       where: { tag: playerTag },
       update: {
