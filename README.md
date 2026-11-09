@@ -22,6 +22,17 @@ Abrí `http://localhost:3000`. Por defecto el puerto solo se publica en loopback
 
 La base de datos y las sesiones web/WhatsApp persisten. Los contenedores aplican migraciones con `prisma migrate deploy`; no se permite pérdida automática de datos. No publicar `.env`, `sessions/`, backups ni QR.
 
+## Windows / Docker Desktop
+
+Descargá y ejecutá [Instalar-ClashRoyaleBot.ps1](scripts/Instalar-ClashRoyaleBot.ps1) en PowerShell 5.1 o superior, con Docker Desktop iniciado en modo contenedores Linux. El instalador usa una carpeta nueva, genera secretos, pide la API key sin mostrarla y conserva `.env` en ejecuciones posteriores. No modifica una instalación anterior a 0.2.0. El script fue revisado, pero no ejecutado en Windows desde el entorno de desarrollo.
+
+```powershell
+Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/DargeoUY/bot-clash-royale/feat/multiclan-web-docker/scripts/Instalar-ClashRoyaleBot.ps1' -OutFile "$env:TEMP\Instalar-ClashRoyaleBot.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\Instalar-ClashRoyaleBot.ps1"
+```
+
+El cambio de ExecutionPolicy corresponde solo al proceso que ejecuta el instalador. No cambia permanentemente la política del equipo. Ruta alternativa: agregar `-InstallDir 'D:\Bots\ClashRoyaleBot'`. Puerto alternativo: `-WebPort 3010`. Acceso local por defecto; otros equipos requieren configurar red/proxy/HTTPS.
+
 ## Primer administrador y nuevos clanes
 
 1. El operador entrega `SIGNUP_TOKEN` únicamente a administradores de comunidades de confianza. Este código autoriza crear administradores para cualquier clan: no es una credencial para jugadores ni una comprobación de liderazgo dentro del juego.
