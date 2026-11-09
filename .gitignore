@@ -5,3 +5,6 @@ backups/
 .env
 *.log
 .DS_Store
+sessions/
+playwright-report/
+test-results/

@@ -1,36 +1,39 @@
 services:
   db:
-    image: mariadb:10.6
-    container_name: basededatos-mariadb
+    image: mariadb:11.4
     environment:
-      MARIADB_ROOT_PASSWORD: RootClash2024
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Definí DB_ROOT_PASSWORD}
       MARIADB_DATABASE: clashbot
-    ports:
-      - "3307:3306"
-    command: --skip-ssl
-    restart: always
-
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: phpmyadmin
-    environment:
-      PMA_HOST: db
-      MYSQL_ROOT_PASSWORD: RootClash2024
-    ports:
-      - "8080:80"
-    depends_on:
-      - db
-    restart: always
-
+      MARIADB_USER: ${DB_USER:-clashbot}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Definí DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
   bot:
     build: .
-    container_name: bot_clash_royale
     env_file: .env
-    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      HEALTHCHECK_PORT: 3000
     ports:
-      - "3000:3000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-3000}:3000"
     volumes:
-      - ./logs:/app/logs
-      - ./backups:/app/backups
+      - logs:/app/logs
+      - backups:/app/backups
+      - whatsapp_sessions:/app/sessions
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 30s
+volumes:
+  db_data:
+  logs:
+  backups:
+  whatsapp_sessions:

@@ -4,7 +4,11 @@ import { z } from 'zod';
 dotenv.config();
 
 const envSchema = z.object({
-  DISCORD_TOKEN: z.string().min(1, 'DISCORD_TOKEN es requerido'),
+  DISCORD_TOKEN: z.string().default(''),
+  SESSION_SECRET: z.string().min(32, 'SESSION_SECRET requiere al menos 32 caracteres'),
+  SIGNUP_TOKEN: z.string().min(32, 'SIGNUP_TOKEN requiere al menos 32 caracteres'),
+  BASE_URL: z.string().url().default('http://localhost:3000'),
+  COOKIE_SECURE: z.enum(['true', 'false']).default('false'),
   DISCORD_CLIENT_ID: z.string().optional(),
   CR_API_KEY: z.string().min(1, 'CR_API_KEY es requerido'),
   CR_DEV_EMAIL: z.string().optional(),
@@ -13,7 +17,7 @@ const envSchema = z.object({
   CR_API_BASE_URL: z.string().url().default('https://api.clashroyale.com/v1'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL es requerido'),
   DB_USER: z.string().default('clashbot'),
-  DB_PASSWORD: z.string().min(1, 'DB_PASSWORD es requerido'),
+  DB_PASSWORD: z.string().optional(),
   DB_ROOT_PASSWORD: z.string().optional(),
   CLAN_TAG: z.string().default('#28P8RQUY'),
   INACTIVITY_THRESHOLD_DAYS: z.coerce.number().int().min(1).default(2),

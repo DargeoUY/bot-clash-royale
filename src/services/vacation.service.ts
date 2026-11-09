@@ -15,6 +15,7 @@ export async function activateVacation(
   reason: string | null,
   createdBy: string,
 ): Promise<VacationResult> {
+  if (!Number.isInteger(days) || days < 1) return { success: false, message: 'Ingresá una cantidad entera de días mayor a cero.' };
   if (days > config.VACATION_MAX_DAYS) {
     return { success: false, message: `El máximo es ${config.VACATION_MAX_DAYS} días.` };
   }
@@ -67,6 +68,7 @@ export async function extendVacation(
   playerTag: string,
   additionalDays: number,
 ): Promise<VacationResult> {
+  if (!Number.isInteger(additionalDays) || additionalDays < 1) return { success: false, message: 'Ingresá una cantidad entera de días mayor a cero.' };
   const active = await prisma.vacacion.findFirst({
     where: { tagJugador: playerTag, activo: true },
   });

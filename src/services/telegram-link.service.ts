@@ -3,7 +3,7 @@ import prisma from '../database/prisma';
 import logger from '../config/logger';
 
 export function generarCodigo(): string {
-  return crypto.randomBytes(3).toString('hex').toUpperCase();
+  return crypto.randomBytes(16).toString('hex').toUpperCase();
 }
 
 export async function crearConexion(chatId: number): Promise<string> {
@@ -12,7 +12,7 @@ export async function crearConexion(chatId: number): Promise<string> {
   await prisma.conexionTelegram.create({
     data: { codigo, chatId, expiraEn },
   });
-  logger.info(`Código de conexión generado: ${codigo} para chat ${chatId}`);
+  logger.info(`Código de conexión generado para chat ${chatId}`);
   return codigo;
 }
 

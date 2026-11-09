@@ -41,6 +41,7 @@ export async function checkInactivity(clanTag: string, _guildId: string | null):
   const players = await prisma.jugador.findMany({
     where: {
       clanTag,
+      estado: 'active',
     },
     include: {
       vacaciones: {

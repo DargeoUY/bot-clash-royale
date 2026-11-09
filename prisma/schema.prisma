@@ -8,156 +8,163 @@ datasource db {
 }
 
 model Clan {
-  id             Int       @id @default(autoincrement())
-  tag            String    @unique
-  name           String
-  description    String?
-  level          Int?
-  totalMiembros  Int?
+  id                Int      @id @default(autoincrement())
+  tag               String   @unique
+  name              String
+  description       String?
+  level             Int?
+  totalMiembros     Int?
   idServidorDiscord String?
   idChatTelegram    BigInt?
-  esPrincipal    Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt()
+  esPrincipal       Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt()
 
-  jugadores        Jugador[]
-  registrosGuerra  RegistroGuerra[]
-  configuraciones  ConfiguracionBot[]
+  accesos         ClanAccess[]
+  invitaciones    WebInvite[]
+  discordEnabled  Boolean            @default(true)
+  telegramEnabled Boolean            @default(true)
+  whatsappEnabled Boolean            @default(false)
+  whatsappGroup   String?
+  jugadores       Jugador[]
+  registrosGuerra RegistroGuerra[]
+  configuraciones ConfiguracionBot[]
 }
 
 model Jugador {
-  id             Int       @id @default(autoincrement())
-  tag            String    @unique
-  nombre         String
-  rol            String?
-  nivel          Int?
-  trofeos        Int?
-  clanTag        String?
-  idDiscord      String?
-  idTelegram     String?
-  registrado     Boolean   @default(false)
-  estado         String    @default("active")
-  ultimaActividad DateTime?
-  salioEn        DateTime?
+  id                  Int       @id @default(autoincrement())
+  tag                 String    @unique
+  nombre              String
+  rol                 String?
+  nivel               Int?
+  trofeos             Int?
+  clanTag             String?
+  idDiscord           String?
+  idWhatsapp          String?
+  idTelegram          String?
+  registrado          Boolean   @default(false)
+  estado              String    @default("active")
+  ultimaActividad     DateTime?
+  salioEn             DateTime?
   trofeosInicioSemana Int?
   trofeosInicioMes    Int?
-  fechaCreacion   DateTime  @default(now())
-  fechaActualizacion DateTime @updatedAt
+  fechaCreacion       DateTime  @default(now())
+  fechaActualizacion  DateTime  @updatedAt
 
-  clan               Clan?                  @relation(fields: [clanTag], references: [tag])
-  participaciones    ParticipanteGuerra[]
-  puntos             PuntoJugador[]
+  clan                 Clan?                 @relation(fields: [clanTag], references: [tag])
+  participaciones      ParticipanteGuerra[]
+  puntos               PuntoJugador[]
   registrosInactividad RegistroInactividad[]
-  historialPuntos    HistorialPunto[]
-  vacaciones         Vacacion[]
-  donaciones         RegistroDonacion[]
-  historialClan      HistorialClan[]
+  historialPuntos      HistorialPunto[]
+  vacaciones           Vacacion[]
+  donaciones           RegistroDonacion[]
+  historialClan        HistorialClan[]
 }
 
 model RegistroGuerra {
-  id             Int       @id @default(autoincrement())
-  clanTag        String
-  idTemporada    String?
-  tipoGuerra     String
-  startDate      DateTime
-  endDate        DateTime?
-  participantes  Int?
+  id              Int       @id @default(autoincrement())
+  clanTag         String
+  idTemporada     String?
+  tipoGuerra      String
+  startDate       DateTime
+  endDate         DateTime?
+  participantes   Int?
   batallasJugadas Int?
-  wins           Int?
-  losses         Int?
-  fame           Int?
+  wins            Int?
+  losses          Int?
+  fame            Int?
   createdAt       DateTime  @default(now())
 
-  clan             Clan                 @relation(fields: [clanTag], references: [tag])
-  participaciones  ParticipanteGuerra[]
+  clan            Clan                 @relation(fields: [clanTag], references: [tag])
+  participaciones ParticipanteGuerra[]
 }
 
 model ParticipanteGuerra {
-  id                Int       @id @default(autoincrement())
-  idRegistroGuerra  Int
-  tagJugador        String
-  batallasJugadas   Int       @default(0)
-  batallasGanadas   Int       @default(0)
-  batallasPerdidas  Int       @default(0)
-  mazosUsados       Int       @default(0)
-  mazosUsadosHoy    Int?
-  barcosAtacados    Int?
-  puntosReparacion  Int?
-  fame              Int?
-  createdAt          DateTime  @default(now())
+  id               Int      @id @default(autoincrement())
+  idRegistroGuerra Int
+  tagJugador       String
+  batallasJugadas  Int      @default(0)
+  batallasGanadas  Int      @default(0)
+  batallasPerdidas Int      @default(0)
+  mazosUsados      Int      @default(0)
+  mazosUsadosHoy   Int?
+  barcosAtacados   Int?
+  puntosReparacion Int?
+  fame             Int?
+  createdAt        DateTime @default(now())
 
   registroGuerra RegistroGuerra @relation(fields: [idRegistroGuerra], references: [id])
-  jugador        Jugador       @relation(fields: [tagJugador], references: [tag])
+  jugador        Jugador        @relation(fields: [tagJugador], references: [tag])
 
   @@unique([idRegistroGuerra, tagJugador])
 }
 
 model PuntoJugador {
-  id             Int       @id @default(autoincrement())
-  tagJugador     String
-  puntosTotales  Int       @default(0)
-  puntosGuerra   Int       @default(0)
+  id              Int      @id @default(autoincrement())
+  tagJugador      String
+  puntosTotales   Int      @default(0)
+  puntosGuerra    Int      @default(0)
   puntosActividad Int      @default(0)
-  puntosExtra    Int       @default(0)
-  season         String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt()
+  puntosExtra     Int      @default(0)
+  season          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt()
 
-  jugador        Jugador   @relation(fields: [tagJugador], references: [tag])
+  jugador Jugador @relation(fields: [tagJugador], references: [tag])
 
   @@unique([tagJugador, season])
 }
 
 model HistorialPunto {
-  id          Int       @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   tagJugador  String
   points      Int
   razon       String
   description String?
   season      String?
-  createdAt    DateTime  @default(now())
+  createdAt   DateTime @default(now())
 
-  jugador     Jugador   @relation(fields: [tagJugador], references: [tag])
+  jugador Jugador @relation(fields: [tagJugador], references: [tag])
 }
 
 model RegistroInactividad {
-  id               Int       @id @default(autoincrement())
-  tagJugador       String
-  diasInactivo     Int
-  notificadoEn     DateTime?
-  vecesNotificado  Int       @default(0)
-  status           String    @default("active")
+  id                 Int       @id @default(autoincrement())
+  tagJugador         String
+  diasInactivo       Int
+  notificadoEn       DateTime?
+  vecesNotificado    Int       @default(0)
+  status             String    @default("active")
   ultimaNotificacion DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt()
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt()
 
-  jugador          Jugador   @relation(fields: [tagJugador], references: [tag])
+  jugador Jugador @relation(fields: [tagJugador], references: [tag])
 }
 
 model Vacacion {
-  id         Int       @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   tagJugador String
   reason     String?
   startDate  DateTime
   endDate    DateTime
-  activo     Boolean   @default(true)
+  activo     Boolean  @default(true)
   creadoPor  String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt()
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt()
 
-  jugador    Jugador   @relation(fields: [tagJugador], references: [tag])
+  jugador Jugador @relation(fields: [tagJugador], references: [tag])
 }
 
 model RegistroDonacion {
-  id                 Int       @id @default(autoincrement())
-  tagJugador         String
-  donations          Int       @default(0)
+  id                  Int      @id @default(autoincrement())
+  tagJugador          String
+  donations           Int      @default(0)
   donacionesRecibidas Int      @default(0)
-  season             String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt()
+  season              String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt()
 
-  jugador            Jugador   @relation(fields: [tagJugador], references: [tag])
+  jugador Jugador @relation(fields: [tagJugador], references: [tag])
 
   @@unique([tagJugador, season])
 }
@@ -170,7 +177,7 @@ model ConfiguracionBot {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
 
-  clan      Clan?    @relation(fields: [clanTag], references: [tag])
+  clan Clan? @relation(fields: [clanTag], references: [tag])
 }
 
 model HistorialClan {
@@ -179,9 +186,9 @@ model HistorialClan {
   clanTag       String
   evento        String
   nombreJugador String?
-  createdAt      DateTime @default(now())
+  createdAt     DateTime @default(now())
 
-  jugador       Jugador  @relation(fields: [tagJugador], references: [tag])
+  jugador Jugador @relation(fields: [tagJugador], references: [tag])
 }
 
 model ConexionTelegram {
@@ -192,4 +199,53 @@ model ConexionTelegram {
   usado     Boolean  @default(false)
   expiraEn  DateTime
   createdAt DateTime @default(now())
+}
+
+model WebAccount {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime     @default(now())
+  accesos      ClanAccess[]
+}
+
+model ClanAccess {
+  id        Int        @id @default(autoincrement())
+  accountId String
+  clanTag   String
+  role      String     @default("member")
+  playerTag String?
+  account   WebAccount @relation(fields: [accountId], references: [id])
+  clan      Clan       @relation(fields: [clanTag], references: [tag])
+
+  @@unique([accountId, clanTag])
+}
+
+model WebInvite {
+  tokenHash String   @id
+  clanTag   String
+  playerTag String?
+  role      String   @default("member")
+  expiresAt DateTime
+  clan      Clan     @relation(fields: [clanTag], references: [tag])
+}
+
+model WebSession {
+  id        String   @id
+  data      String   @db.Text
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+model AuditEvent {
+  id        Int      @id @default(autoincrement())
+  clanTag   String
+  actor     String
+  action    String
+  detail    String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([clanTag, createdAt])
 }
