@@ -1,38 +1,32 @@
 import { Client, GatewayIntentBits, Events } from 'discord.js';
 import { config } from '../config';
 import logger from '../config/logger';
-import { startSyncTasks, stopSyncTasks } from '../tasks/sync-clan';
-import { startInactivityCheck, stopInactivityCheck } from '../tasks/check-inactivity';
-import { startReportTasks, stopReportTasks } from '../tasks/weekly-report';
-import { startMonthlyTasks, stopMonthlyTasks } from '../tasks/monthly-report';
-import { startRoleUpdater, stopRoleUpdater } from '../tasks/update-roles';
-import { startBackupTask, stopBackupTask } from '../tasks/backup-database';
-import { startIPChecker, stopIPChecker } from '../tasks/check-ip';
-import { startWeeklyRanking, stopWeeklyRanking } from '../tasks/weekly-ranking';
-import { startMonthlyRanking, stopMonthlyRanking } from '../tasks/monthly-ranking';
+import { stopSyncTasks } from '../tasks/sync-clan';
+import { stopInactivityCheck } from '../tasks/check-inactivity';
+import { stopReportTasks } from '../tasks/weekly-report';
+import { stopMonthlyTasks } from '../tasks/monthly-report';
+import { stopRoleUpdater } from '../tasks/update-roles';
+import { stopBackupTask } from '../tasks/backup-database';
+import { stopIPChecker } from '../tasks/check-ip';
+import { stopWeeklyRanking } from '../tasks/weekly-ranking';
+import { stopMonthlyRanking } from '../tasks/monthly-ranking';
 import { handleInteraction } from './events/interactionCreate';
 import { crGet } from '../api/client';
-import { startWebServer } from '../web';
+
 import { setDiscordClient } from '../services/cross-platform.service';
-import { startTelegramBot } from '../telegram';
-import { syncClanData, syncCurrentWar } from '../services/clan-war.service';
-import { getAllClanConfigs } from '../utils/guild';
-import { getInactivitySummary } from '../services/inactivity.service';
-import { notifyDailyInactivitySummary } from '../services/notification.service';
-import { generateWeeklyReport } from '../services/ranking.service';
-import { broadcastToGuild } from '../services/cross-platform.service';
+
 
 async function testApiConnection(): Promise<void> {
-  const keyPreview = config.CR_API_KEY.substring(0, 20) + '...';
+
   logger.info(`Config -> CR_API_BASE_URL: ${config.CR_API_BASE_URL}`);
-  logger.info(`Config -> CR_API_KEY: ${keyPreview}`);
+
   try {
-    const result = await crGet<object>('/clans/%2328P8RQUY');
+    const result = await crGet<object>(`/clans/${encodeURIComponent(config.CLAN_TAG)}`);
     const name = (result as { name?: string }).name || 'unknown';
     logger.info(`API OK -> Clan "${name}" conectado via ${config.CR_API_BASE_URL}`);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.error(`API FAILED -> ${config.CR_API_BASE_URL} | ${keyPreview} | ${msg}`);
+    logger.error(`API FAILED -> ${config.CR_API_BASE_URL} | ${msg}`);
     logger.error('Crear nueva API key en https://developer.clashroyale.com');
   }
 }
@@ -47,42 +41,10 @@ client.once(Events.ClientReady, async (readyClient) => {
   logger.info(`Bot conectado como ${readyClient.user.tag}`);
   logger.info(`Sirviendo ${readyClient.guilds.cache.size} servidores`);
   await testApiConnection();
-  await startTelegramBot();
+
   client.user?.setActivity('/ayuda | Clash Royale', { type: 3 });
 
-  // Sincronización inmediata: alimenta la DB al iniciar
-  try {
-    const clans = await getAllClanConfigs();
-    for (const { clanTag, guildId } of clans) {
-      logger.info(`Sincronización inicial: ${clanTag}`);
-      await syncClanData(clanTag, readyClient);
-      await syncCurrentWar(clanTag);
 
-      // Publicar rankings e inactivos al iniciar
-      try {
-        const [weeklyReport, inactivity] = await Promise.all([
-          generateWeeklyReport(clanTag),
-          getInactivitySummary(clanTag),
-        ]);
-        await broadcastToGuild(guildId, weeklyReport);
-        await notifyDailyInactivitySummary(readyClient, guildId, inactivity.warning.concat(inactivity.inactive).concat(inactivity.kick_suggested));
-      } catch (pubErr) {
-        logger.error(`Error publicando datos al iniciar para ${clanTag}:`, pubErr);
-      }
-    }
-  } catch (err) {
-    logger.error('Error en sincronización inicial:', err);
-  }
-
-  startSyncTasks();
-  startInactivityCheck(client);
-  startReportTasks(client);
-  startMonthlyTasks(client);
-  startRoleUpdater(client);
-  startBackupTask();
-  startIPChecker();
-  startWeeklyRanking(client);
-  startMonthlyRanking(client);
 });
 
 client.on(Events.GuildCreate, (guild) => {
@@ -101,11 +63,11 @@ client.on(Events.InteractionCreate, handleInteraction);
 
 export async function startDiscordBot(): Promise<void> {
   await client.login(config.DISCORD_TOKEN);
-  startWebServer();
+
   logger.info('Bot iniciado correctamente');
 }
 
-function shutdown(): void {
+export function stopDiscordBot(): void {
   logger.info('Apagando bot...');
   stopSyncTasks();
   stopInactivityCheck();
@@ -117,5 +79,5 @@ function shutdown(): void {
   stopWeeklyRanking();
   stopMonthlyRanking();
   client.destroy();
-  process.exit(0);
+
 }

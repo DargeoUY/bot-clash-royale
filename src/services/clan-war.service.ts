@@ -48,6 +48,8 @@ export async function syncClanData(
 
     const members = await getClanMembers(clanTag);
 
+    // Compare against the previous snapshot before upserts overwrite player state.
+    const previous = await prisma.jugador.findMany({ where: { clanTag } });
     for (const member of members) {
       const lastSeen = parseSafeDate(member.lastSeen);
 
@@ -85,10 +87,11 @@ export async function syncClanData(
 
     logger.info(`Clan members synced: ${members.length} players`);
 
-    const changes = await detectMemberChanges(clanTag, members);
+    const changes = await detectMemberChanges(clanTag, members, previous);
 
     if (client) {
-      const guild = client.guilds.cache.first();
+      const guild = clan.idServidorDiscord && clan.discordEnabled
+        ? client.guilds.cache.get(clan.idServidorDiscord) : undefined;
       if (guild) {
         await updateCategoryName(guild, members.length);
         await publishMemberChanges(client, guild.id, changes);
@@ -223,7 +226,7 @@ export async function syncCurrentWar(clanTag: string): Promise<void> {
     const race = await getCurrentRiverRace(clanTag);
     if (!race.clan) return;
 
-    const seasonId = String(race.seasonId);
+    const seasonId = `${race.seasonId}:${race.sectionIndex}`;
     const participants = race.clan.participants || [];
 
     // Obtener o crear registro de guerra para la temporada activa
@@ -255,6 +258,8 @@ export async function syncCurrentWar(clanTag: string): Promise<void> {
 
     // UPSERT cada participante con datos actuales de race.clan.participants
     for (const p of participants) {
+      await prisma.jugador.upsert({ where: { tag: p.tag }, update: {},
+        create: { tag: p.tag, nombre: p.name, estado: "left" } });
       await prisma.participanteGuerra.upsert({
         where: {
           idRegistroGuerra_tagJugador: {

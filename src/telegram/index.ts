@@ -1,4 +1,4 @@
-import { Bot, Context } from 'grammy';
+import { Bot } from 'grammy';
 import logger from '../config/logger';
 import { crearConexion, limpiarExpirados } from '../services/telegram-link.service';
 import { setTelegramBot } from '../services/cross-platform.service';
@@ -17,18 +17,8 @@ if (bot) {
       const chat = ctx.chat;
       const oldMember = ctx.myChatMember.old_chat_member;
       const newMember = ctx.myChatMember.new_chat_member;
-      if (newMember.status === 'member' && oldMember.status !== 'member' && oldMember.status !== 'administrator') {
-        const codigo = await crearConexion(chat.id);
-        await ctx.api.sendMessage(
-          chat.id,
-          `🤖 ¡Bot Clash Royale activo en este grupo!\n\n` +
-          `Para vincular este grupo con Discord y tu clan:\n\n` +
-          `1️⃣ Copiá este código: **${codigo}**\n` +
-          `2️⃣ Andá a Discord y usá el comando \`/auto-setup\`\n` +
-          `3️⃣ En el formulario, pegá el código en el campo "Código de Telegram"\n\n` +
-          `⚠️ El código expira en 1 hora.`,
-          { parse_mode: 'Markdown' },
-        );
+      if (['member', 'administrator'].includes(newMember.status) && ['left', 'kicked'].includes(oldMember.status)) {
+        await ctx.api.sendMessage(chat.id, 'Bot activo. Un administrador del grupo debe usar /vincular y pegar el código en Canales de la web.');
       }
       if (newMember.status === 'left' || newMember.status === 'kicked') {
         const prisma = (await import('../database/prisma')).default;
@@ -43,6 +33,13 @@ if (bot) {
     }
   });
 
+  bot.command('vincular', async ctx => {
+    if (!ctx.chat || ctx.chat.type === 'private') return;
+    const member = await ctx.getChatMember(ctx.from!.id);
+    if (!['administrator', 'creator'].includes(member.status)) { await ctx.reply('Solo administradores del grupo.'); return; }
+    const codigo = await crearConexion(ctx.chat.id);
+    await ctx.reply(`Código de vinculación: ${codigo}. Vence en una hora. Pegalo en Canales de la web.`);
+  });
   bot.command('start', (ctx) => ctx.reply(
     '🤖 Bot Clash Royale activo.\n\n' +
     'Comandos:\n' +
@@ -82,10 +79,16 @@ if (bot) {
   registrarComandos(bot);
 }
 
+let cleanup: NodeJS.Timeout | undefined;
+export async function stopTelegramBot(): Promise<void> {
+  clearInterval(cleanup); if (bot?.isRunning()) await bot.stop();
+}
+
 export async function startTelegramBot(): Promise<void> {
   if (!bot) return;
   setTelegramBot(bot);
-  bot.start();
-  setInterval(limpiarExpirados, 10 * 60 * 1000);
+  bot.catch(() => logger.error('Error procesando actualización Telegram'));
+  void bot.start().catch(() => logger.error('Telegram detenido por error de conexión'));
+  cleanup = setInterval(() => { limpiarExpirados().catch(() => logger.warn('No se pudo limpiar códigos Telegram')); }, 10 * 60 * 1000);
   logger.info('Bot de Telegram iniciado');
 }

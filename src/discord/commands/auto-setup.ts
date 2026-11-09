@@ -1,3 +1,4 @@
+import { authorizeDiscordClan } from '../../services/discord-link.service';
 import { SlashCommandBuilder, ChatInputCommandInteraction, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { BotCommand } from '../../types';
 import { autoCreateSetup } from '../../services/auto-setup.service';
@@ -31,7 +32,8 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
   const row1 = new ActionRowBuilder<TextInputBuilder>().addComponents(clanTagInput);
   const row2 = new ActionRowBuilder<TextInputBuilder>().addComponents(codigoInput);
 
-  modal.addComponents(row1, row2);
+  const link = new TextInputBuilder().setCustomId('codigo_web').setLabel('Código del panel web (clan existente)').setStyle(TextInputStyle.Short).setRequired(false);
+  modal.addComponents(row1, row2, new ActionRowBuilder<TextInputBuilder>().addComponents(link));
   await interaction.showModal(modal);
 }
 
@@ -67,6 +69,7 @@ async function handleModal(interaction: import('discord.js').ModalSubmitInteract
   }
 
   try {
+    await authorizeDiscordClan(clanTag, guild.id, interaction.fields.getTextInputValue('codigo_web') || undefined);
     const result = await autoCreateSetup(guild, clanTag, chatIdVinculado);
 
     if (chatIdVinculado) {

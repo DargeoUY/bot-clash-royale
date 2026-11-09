@@ -1,3 +1,5 @@
+import { authorizeDiscordClan } from '../../services/discord-link.service';
+import { formatPlayerTag } from '../../utils/validators';
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { BotCommand } from '../../types';
 import { getClanInfo } from '../../api/clan';
@@ -8,7 +10,7 @@ import { errorEmbed, EMBED_COLOR } from '../../utils/embeds';
 async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
 
-  const clanTag = interaction.options.getString('clan_tag', true);
+  const clanTag = formatPlayerTag(interaction.options.getString('clan_tag', true));
   const apiKey = interaction.options.getString('api_key') || undefined;
   const guild = interaction.guild;
   if (!guild) {
@@ -22,6 +24,7 @@ async function execute(interaction: ChatInputCommandInteraction): Promise<void> 
   try {
     const clanInfo = await getClanInfo(clanTag, apiKey);
 
+    await authorizeDiscordClan(clanTag, guild.id, interaction.options.getString('codigo_web') || undefined);
     await prisma.configuracionBot.upsert({
       where: { clave: `clan_tag_${guild.id}` },
       update: { valor: clanTag },
@@ -94,6 +97,7 @@ export const setup: BotCommand = {
     .addStringOption((opt) =>
       opt.setName('clan_tag').setDescription('Tag del clan (ej: #28P8RQUY)').setRequired(true),
     )
+    .addStringOption(opt => opt.setName('codigo_web').setDescription('Código generado en el panel web para un clan existente'))
     .addStringOption((opt) =>
       opt.setName('api_key').setDescription('API Key propia (opcional, usa la del bot si no se especifica)').setRequired(false),
     ),

@@ -1,21 +1,29 @@
+import { randomBytes } from 'crypto';
+import { config } from '../config';
+import { equalSecret } from './security';
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
 import prisma from '../database/prisma';
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '';
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
-const REDIRECT_URI = `${process.env.BASE_URL || 'https://13.140.185.223:3000'}/auth/discord/callback`;
+const REDIRECT_URI = `${config.BASE_URL}/auth/discord/callback`;
 
 export const authRouter = Router();
 
-authRouter.get('/discord', (_req: Request, res: Response) => {
-  const url = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify+guilds`;
-  res.redirect(url);
+authRouter.get('/discord', (req: Request, res: Response) => {
+  if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) { res.status(503).send('Discord no está configurado. Usá tu cuenta web.'); return; }
+  const state = randomBytes(32).toString('hex');
+  req.session.oauthState = { value: state, expires: Date.now() + 600000 };
+  const url = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify+guilds&state=${state}`;
+  req.session.save(error => { if (error) res.sendStatus(500); else res.redirect(url); });
 });
 
 authRouter.get('/discord/callback', async (req: Request, res: Response) => {
   const { code } = req.query;
-  if (!code) {
+  const state = req.session.oauthState;
+  delete req.session.oauthState;
+  if (typeof code !== 'string' || typeof req.query.state !== 'string' || !state || state.expires < Date.now() || !equalSecret(req.query.state, state.value)) {
     res.status(400).send('Código de autorización faltante');
     return;
   }
@@ -63,16 +71,13 @@ authRouter.get('/discord/callback', async (req: Request, res: Response) => {
       res.status(404).send('No se encontró un clan vinculado a tu servidor.');
       return;
     }
-    (req.session as any).user = { id: user.id, username: user.username, clanTag: clan.tag, guildId: managedGuild.id };
-    res.redirect('/dashboard');
+    await new Promise<void>((resolve, reject) => req.session.regenerate(e => e ? reject(e) : resolve()));
+    req.session.user = { id: user.id, username: user.username, clanTag: clan.tag, guildId: managedGuild.id };
+    req.session.save(error => { if (error) res.sendStatus(500); else res.redirect('/'); });
   } catch (err) {
-    console.error('Auth error:', err);
+    console.error('Falló autenticación Discord');
     res.status(500).send('Error de autenticación');
   }
 });
 
-authRouter.get('/logout', (req: Request, res: Response) => {
-  req.session.destroy(() => {
-    res.redirect('/');
-  });
-});
+authRouter.get('/logout', (_req, res) => res.redirect('/'));

@@ -14,7 +14,8 @@ export async function addPoints(
 ): Promise<void> {
   const season = getSeason();
 
-  await prisma.puntoJugador.upsert({
+  await prisma.$transaction(async tx => {
+  await tx.puntoJugador.upsert({
     where: { tagJugador_season: { tagJugador: playerTag, season } },
     update: {
       puntosTotales: { increment: points },
@@ -24,7 +25,7 @@ export async function addPoints(
     },
     create: {
       tagJugador: playerTag,
-      puntosTotales: Math.max(points, 0),
+      puntosTotales: points,
       puntosGuerra: reason.startsWith('war_') ? points : 0,
       puntosActividad: reason === 'donation' ? points : 0,
       puntosExtra: reason === 'bonus' || reason === 'penalty' ? points : 0,
@@ -32,7 +33,7 @@ export async function addPoints(
     },
   });
 
-  await prisma.historialPunto.create({
+  await tx.historialPunto.create({
     data: {
       tagJugador: playerTag,
       points,
@@ -40,6 +41,8 @@ export async function addPoints(
       description,
       season,
     },
+  });
+
   });
 
   logger.debug(`Points: ${playerTag} ${points > 0 ? '+' : ''}${points} (${reason})`);
@@ -109,7 +112,7 @@ export async function getLeaderboard(
 
 export async function calculateWarPoints(clanTag: string, warLogId: number): Promise<void> {
   const participants = await prisma.participanteGuerra.findMany({
-    where: { idRegistroGuerra: warLogId },
+    where: { idRegistroGuerra: warLogId, registroGuerra: { clanTag } },
     include: { jugador: { include: { vacaciones: { where: { activo: true } } } } },
   });
 

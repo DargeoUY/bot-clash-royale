@@ -1,11 +1,11 @@
 import prisma from '../database/prisma';
-import { config } from '../config';
 
 export async function getGuildClanTag(guildId: string): Promise<string> {
   const cfg = await prisma.configuracionBot.findUnique({
     where: { clave: `clan_tag_${guildId}` },
   });
-  return cfg?.valor || config.CLAN_TAG;
+  if (!cfg) throw new Error('Servidor sin configurar. Usá /auto-setup.');
+  return cfg.valor;
 }
 
 export async function getGuildApiKey(guildId: string): Promise<string | undefined> {
@@ -16,15 +16,14 @@ export async function getGuildApiKey(guildId: string): Promise<string | undefine
 }
 
 export async function getAllClanTags(): Promise<string[]> {
-  const configs = await prisma.configuracionBot.findMany({
-    where: { clave: { startsWith: 'clan_tag_' } },
-  });
-  return [...new Set(configs.map((c) => c.valor))];
+  const clans = await prisma.clan.findMany({ select: { tag: true } });
+  return clans.map((c) => c.tag);
 }
 
 export async function getAllClanConfigs(): Promise<
   { clanTag: string; guildId: string; apiKey?: string }[]
 > {
+  const enabled = await prisma.clan.findMany({ where: { discordEnabled: true, idServidorDiscord: { not: null } } });
   const tags = await prisma.configuracionBot.findMany({
     where: { clave: { startsWith: 'clan_tag_' } },
   });
@@ -32,6 +31,7 @@ export async function getAllClanConfigs(): Promise<
   const results: { clanTag: string; guildId: string; apiKey?: string }[] = [];
   for (const t of tags) {
     const guildId = t.clave.replace('clan_tag_', '');
+    if (!enabled.some(c => c.tag === t.valor && c.idServidorDiscord === guildId)) continue;
     const apiKey = await getGuildApiKey(guildId);
     results.push({ clanTag: t.valor, guildId, apiKey });
   }

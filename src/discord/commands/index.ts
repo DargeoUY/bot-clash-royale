@@ -1,3 +1,4 @@
+import { consulta } from './consulta';
 import { BotCommand } from '../../types';
 import { registrar } from './registrar';
 import { clan } from './clan';
@@ -17,6 +18,7 @@ import { sync } from './sync';
 import { web } from './panel';
 
 export const commands = new Map<string, BotCommand>([
+  ['consulta', consulta],
   ['registrar', registrar],
   ['clan', clan],
   ['perfil', perfil],

@@ -1,4 +1,5 @@
 import prisma from '../database/prisma';
+import { Jugador } from '@prisma/client';
 import { ClanMember } from '../api/types';
 import logger from '../config/logger';
 
@@ -12,10 +13,11 @@ export interface MemberChanges {
 export async function detectMemberChanges(
   clanTag: string,
   currentMembers: ClanMember[],
+  previous?: Jugador[],
 ): Promise<MemberChanges> {
   const currentTags = new Set(currentMembers.map((m) => m.tag));
 
-  const existingPlayers = await prisma.jugador.findMany({
+  const existingPlayers = previous ?? await prisma.jugador.findMany({
     where: { clanTag },
   });
 
@@ -48,7 +50,7 @@ export async function detectMemberChanges(
   for (const p of left) {
     await prisma.jugador.update({
       where: { tag: p.tag },
-      data: { estado: 'left', salioEn: new Date(), clanTag: null },
+      data: { estado: 'left', salioEn: new Date() },
     });
     await prisma.historialClan.create({
       data: { tagJugador: p.tag, clanTag, evento: 'left', nombreJugador: p.name },
@@ -85,7 +87,7 @@ export async function detectMemberChanges(
   };
 }
 
-export async function getClanStats(_clanTag: string): Promise<{
+export async function getClanStats(clanTag: string): Promise<{
   totalJoined: number;
   totalLeft: number;
   thisMonth: { joined: number; left: number };
@@ -94,10 +96,10 @@ export async function getClanStats(_clanTag: string): Promise<{
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const [totalJoined, totalLeft, monthJoined, monthLeft] = await Promise.all([
-    prisma.historialClan.count({ where: { evento: 'joined' } }),
-    prisma.historialClan.count({ where: { evento: 'left' } }),
-    prisma.historialClan.count({ where: { evento: 'joined', createdAt: { gte: monthStart } } }),
-    prisma.historialClan.count({ where: { evento: 'left', createdAt: { gte: monthStart } } }),
+    prisma.historialClan.count({ where: { clanTag, evento: 'joined' } }),
+    prisma.historialClan.count({ where: { clanTag, evento: 'left' } }),
+    prisma.historialClan.count({ where: { clanTag, evento: 'joined', createdAt: { gte: monthStart } } }),
+    prisma.historialClan.count({ where: { clanTag, evento: 'left', createdAt: { gte: monthStart } } }),
   ]);
 
   return {

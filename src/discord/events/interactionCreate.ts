@@ -1,3 +1,4 @@
+import prisma from '../../database/prisma';
 import { Interaction } from 'discord.js';
 import logger from '../../config/logger';
 import { commands } from '../commands';
@@ -6,7 +7,9 @@ import { checkRegistered } from '../middleware/guild-check';
 
 export async function handleInteraction(interaction: Interaction): Promise<void> {
   if (interaction.isModalSubmit()) {
-    const commandName = interaction.customId.replace('_modal', '');
+    if (!interaction.guild || !interaction.memberPermissions?.has('ManageGuild')) {
+      await interaction.reply({ content: 'Permiso denegado.', ephemeral: true }); return;
+    }
     for (const [, cmd] of commands) {
       if (cmd.modalHandler && interaction.customId === 'auto_setup_modal') {
         await cmd.modalHandler(interaction);
@@ -18,6 +21,10 @@ export async function handleInteraction(interaction: Interaction): Promise<void>
 
   if (!interaction.isChatInputCommand()) return;
 
+  if (interaction.guildId && !['setup', 'auto-setup', 'web', 'ayuda', 'guia'].includes(interaction.commandName)) {
+    const clan = await prisma.clan.findFirst({ where: { idServidorDiscord: interaction.guildId } });
+    if (clan && !clan.discordEnabled) { await interaction.reply({ content: 'Discord está deshabilitado en este clan.', ephemeral: true }); return; }
+  }
   const command = commands.get(interaction.commandName);
   if (!command) {
     logger.warn(`Comando no encontrado: ${interaction.commandName}`);
@@ -32,7 +39,7 @@ export async function handleInteraction(interaction: Interaction): Promise<void>
     return;
   }
 
-  const publicCommands = ['registrar', 'ayuda', 'guia', 'setup', 'auto-setup', 'config', 'sync'];
+  const publicCommands = ['registrar', 'ayuda', 'guia', 'setup', 'auto-setup', 'config', 'sync', 'consulta', 'web'];
   if (!publicCommands.includes(interaction.commandName)) {
     await interaction.deferReply({ ephemeral: true });
     const ok = await checkRegistered(interaction);
